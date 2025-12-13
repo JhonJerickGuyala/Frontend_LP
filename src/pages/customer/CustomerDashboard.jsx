@@ -41,7 +41,7 @@ const CustomerDashboard = () => {
                         setFeaturedAmenities(response.data);
                     } else { throw new Error("No data"); }
                 } catch (err) {
-
+                    console.log(err);
                     setFeaturedAmenities([
                         { id: 1, name: "Refreshing Pool", description: "Dive into relaxation.", image: "pool.png" },
                         { id: 2, name: "Grand Event Hall", description: "Perfect venue for celebrations.", image: "eventhall.png" },
@@ -66,6 +66,7 @@ const CustomerDashboard = () => {
                     }));
                     setReviews(formattedReviews.filter(r => parseFloat(r.average) >= 4.0));
                 } catch (error) { 
+                    console.log(error);
                     setReviews([]); 
                 }
 

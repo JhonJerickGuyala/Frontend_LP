@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import api from '../../config/axios';
 import { 
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
@@ -10,9 +10,12 @@ import {
 } from 'lucide-react';
 
 const OwnerAnalytics = () => { 
-  const [ setLoading] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [periodLabel, setPeriodLabel] = useState('vs last month');
   const [activeFilter, setActiveFilter] = useState('month'); 
+  
+  const [extensionModal, setExtensionModal] = useState(null); 
+
   const [dateRange, setDateRange] = useState(() => {
     const today = new Date();
     const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
@@ -51,18 +54,30 @@ const OwnerAnalytics = () => {
   };
 
 
+  useEffect(() => {
+    if (extensionModal) {
+      document.body.style.overflow = 'hidden';
+      document.documentElement.style.overflow = 'hidden'; 
+    } else {
+      document.body.style.overflow = '';
+      document.documentElement.style.overflow = '';
+    }
+    
+    return () => {
+      document.body.style.overflow = '';
+      document.documentElement.style.overflow = '';
+    };
+  }, [extensionModal]);
+
+
   useEffect(() => { 
-
     fetchDashboardData(false);
-
 
     const intervalId = setInterval(() => {
         fetchDashboardData(true);
     }, 3000);
 
-
     return () => clearInterval(intervalId);
-
   }, [dateRange]); 
 
 
@@ -367,8 +382,7 @@ const OwnerAnalytics = () => {
                 <h3 className="font-bold text-slate-800 flex items-center gap-2">
                     <Filter size={18} className="text-orange-500"/> Transaction History
                 </h3>
-                
-                {/* Segmented Control */}
+
                 <div className="flex p-1 bg-slate-200/60 rounded-lg w-full sm:w-auto overflow-x-auto">
                     {['All', 'Online', 'Walk-in'].map(tab => (
                         <button 
@@ -417,32 +431,16 @@ const OwnerAnalytics = () => {
                                 }`}>{t.booking_type}</span>
                             </td>
                             
-                            {/* --- MODIFIED DETAILS COLUMN --- */}
                             <td className="px-6 py-4 align-top">
                                 <p className="text-xs text-slate-600 font-medium line-clamp-2 max-w-[200px]" title={t.amenities_summary}>{t.amenities_summary || "No amenities"}</p>
+                                
                                 {t.extensions && t.extensions.length > 0 && (
-                                    <div className="mt-2 flex flex-col gap-1">
-                                        {t.extensions.slice(0, 3).map((ext, idx) => (
-                                            <span key={idx} className="text-[10px] bg-purple-50 text-purple-700 px-2 py-0.5 rounded border border-purple-100 w-fit flex items-center gap-1 whitespace-nowrap">
-                                                <RefreshCw size={8}/> + {ext.description} (₱{Number(ext.additional_cost).toLocaleString()})
-                                            </span>
-                                        ))}
-
-                                        {t.extensions.length > 3 && (
-                                            <div className="group relative w-fit">
-                                                <span className="text-[10px] font-medium text-slate-400 pl-1 cursor-help hover:text-purple-600 transition-colors">
-                                                    + {t.extensions.length - 3} more extensions...
-                                                </span>
-                                                <div className="absolute left-0 top-full mt-1 hidden group-hover:block z-50 w-max bg-slate-800 text-white text-[10px] p-2 rounded shadow-lg border border-slate-700">
-                                                    {t.extensions.slice(3).map((ext, i) => (
-                                                        <div key={i} className="mb-1 last:mb-0 whitespace-nowrap">
-                                                            • {ext.description} (₱{Number(ext.additional_cost).toLocaleString()})
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                        )}
-                                    </div>
+                                    <button 
+                                        onClick={() => setExtensionModal({ ref: t.transaction_ref, data: t.extensions })}
+                                        className="mt-2 text-[10px] text-purple-600 font-bold bg-purple-50 px-2 py-1 rounded border border-purple-100 hover:bg-purple-100 hover:border-purple-200 transition-colors flex items-center gap-1 w-fit cursor-pointer"
+                                    >
+                                        <RefreshCw size={10}/> View {t.extensions.length} Extensions
+                                    </button>
                                 )}
                             </td>
 
@@ -463,6 +461,57 @@ const OwnerAnalytics = () => {
             </div>
         </div>
       </div>
+
+      {/* --- EXTENSION MODAL COMPONENT --- */}
+      {extensionModal && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/40 backdrop-blur-[2px] p-4 animate-in fade-in duration-200 overscroll-contain">
+            <div className="absolute inset-0" onClick={() => setExtensionModal(null)}></div>
+
+            <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden border border-slate-100 animate-in zoom-in-95 duration-200 relative z-10">
+                <div className="px-5 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                    <div>
+                        <h3 className="font-bold text-slate-800 text-sm">Extension History</h3>
+                        <p className="text-[10px] text-slate-400 font-mono">Ref: {extensionModal.ref}</p>
+                    </div>
+                    <button 
+                        onClick={() => setExtensionModal(null)} 
+                        className="text-slate-400 hover:text-slate-600 hover:bg-slate-200 rounded-full p-1 transition-all"
+                    >
+                        <XCircle size={18}/>
+                    </button>
+                </div>
+                <div className="p-2 max-h-[60vh] overflow-y-auto">
+                    {extensionModal.data.map((ext, idx) => (
+                        <div key={idx} className="flex justify-between items-center p-3 mb-1 last:mb-0 bg-white hover:bg-slate-50 rounded-lg border border-transparent hover:border-slate-100 transition-all">
+                             <div className="flex items-start gap-3">
+                                <div className="p-2 bg-purple-50 text-purple-600 rounded-lg">
+                                    <Clock size={14} />
+                                </div>
+                                <div>
+                                    <p className="text-xs font-bold text-slate-700">{ext.description}</p>
+                                    <p className="text-[10px] text-slate-400">Extension Added</p>
+                                </div>
+                             </div>
+                             <div className="text-right">
+                                <span className="block text-xs font-bold text-purple-600 bg-purple-50 px-2 py-0.5 rounded border border-purple-100">
+                                    +₱{Number(ext.additional_cost).toLocaleString()}
+                                </span>
+                             </div>
+                        </div>
+                    ))}
+                </div>
+                <div className="p-3 bg-slate-50 border-t border-slate-100 text-center">
+                    <button 
+                        onClick={() => setExtensionModal(null)}
+                        className="text-xs font-bold text-slate-500 hover:text-slate-700"
+                    >
+                        Close Details
+                    </button>
+                </div>
+            </div>
+        </div>
+      )}
+
     </div>
   );
 };

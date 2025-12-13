@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import api from '../../config/axios';
 import { CheckCircle, AlertCircle, X } from 'lucide-react';
-import WalkInModals from '../../components/WalkinBookingComponents/WalkInModal.jsx';
+import { WalkInConfirmationModal, WalkInSuccessModal } from '../../components/WalkinBookingComponents/WalkInModal.jsx';
 import WalkInForm from '../../components/WalkinBookingComponents/WalkInForm.jsx';
 import WalkInCart from '../../components/WalkinBookingComponents/WalkInCart.jsx';
 import WalkInAmenities from '../../components/WalkinBookingComponents/WalkInAmenities.jsx';
@@ -27,13 +27,16 @@ const WalkInBooking = () => {
   const [cart, setCart] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
+  
   const [toast, setToast] = useState(null); 
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [transactionRef, setTransactionRef] = useState('');
   const [dateError, setDateError] = useState('');
   const [tableRefreshTrigger, setTableRefreshTrigger] = useState(0);
+
   const showToast = (message, type = 'success') => setToast({ message, type });
+
   const fetchAmenities = async () => { 
       try { 
         let url = '/api/amenities';
@@ -48,22 +51,15 @@ const WalkInBooking = () => {
             } else {
                 const startDate = new Date(formData.checkInDate);
                 startDate.setMinutes(startDate.getMinutes() + 1);
-
                 const year = startDate.getFullYear();
                 const month = String(startDate.getMonth() + 1).padStart(2, '0');
                 const day = String(startDate.getDate()).padStart(2, '0');
                 const hours = String(startDate.getHours()).padStart(2, '0');
                 const minutes = String(startDate.getMinutes()).padStart(2, '0');
-                
-                const formattedCheckOut = `${year}-${month}-${day}T${hours}:${minutes}`;
-                params.checkOut = formattedCheckOut;
+                params.checkOut = `${year}-${month}-${day}T${hours}:${minutes}`;
             }
         }
-
-        console.log("🔍 Fetching from:", url, params);
-
         const res = await api.get(url, { params }); 
-        
         if (res.data.success) {
             setAmenities(Array.isArray(res.data.data) ? res.data.data : []);
         }
@@ -72,10 +68,7 @@ const WalkInBooking = () => {
       } 
   };
   
-
-  useEffect(() => { 
-      fetchAmenities(); 
-  }, [formData.checkInDate, formData.checkOutDate]);
+  useEffect(() => { fetchAmenities(); }, [formData.checkInDate, formData.checkOutDate]);
 
   useEffect(() => {
     if (formData.checkInDate && formData.checkOutDate) {
@@ -84,21 +77,42 @@ const WalkInBooking = () => {
     }
   }, [formData.checkInDate, formData.checkOutDate]);
 
-  const calculateTotal = () => cart.reduce((sum, i) => sum + (i.amenity_price * i.quantity), 0);
+  const calculateTotal = () => {
+    let days = 1;
+    if (formData.checkInDate && formData.checkOutDate) {
+        const start = new Date(formData.checkInDate);
+        const end = new Date(formData.checkOutDate);
+        const diffTime = Math.abs(end - start);
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
+        days = diffDays > 0 ? diffDays : 1;
+    }
+
+    const amenitiesCost = cart.reduce((sum, i) => sum + (i.amenity_price * i.quantity), 0) * days;
+    const guests = parseInt(formData.numGuest) || 0;
+    const entranceFee = guests * 50 * days;
+
+    return amenitiesCost + entranceFee;
+  };
 
   const handleFinalConfirm = async () => {
     setLoading(true); 
     try {
       const fd = new FormData();
       
-      fd.append('num_guest', formData.numGuest || 0); 
+      fd.append('numGuest', formData.numGuest || 0); 
       
       Object.keys(formData).forEach(k => {
           if (k !== 'numGuest') fd.append(k, formData[k]); 
       });
 
-      fd.append('booking_type', 'Walk-in'); fd.append('bookingStatus', 'Confirmed'); fd.append('paymentStatus', 'Fully Paid');
-      fd.append('totalAmount', calculateTotal()); fd.append('downpayment', calculateTotal()); fd.append('balance', 0);
+      const finalTotal = calculateTotal();
+
+      fd.append('booking_type', 'Walk-in'); 
+      fd.append('bookingStatus', 'Confirmed'); 
+      fd.append('paymentStatus', 'Fully Paid');
+      fd.append('totalAmount', finalTotal); 
+      fd.append('downpayment', finalTotal);
+      fd.append('balance', 0);
       fd.append('cart', JSON.stringify(cart));
       
       const res = await api.post('/api/transactions', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
@@ -128,10 +142,20 @@ const WalkInBooking = () => {
     <div className="space-y-6 max-w-9xl mx-auto pb-12 relative">
         {toast && <ToastNotification message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
         
-        <WalkInModals 
-            showConfirmModal={showConfirmModal} setShowConfirmModal={setShowConfirmModal} formData={formData} cart={cart} total={calculateTotal()} handleFinalConfirm={handleFinalConfirm} loading={loading}
-            showSuccess={showSuccess} setShowSuccess={setShowSuccess} transactionRef={transactionRef} handleCloseSuccess={handleCloseSuccess}
-            showExtendModal={false} showDetailsModal={false}
+        <WalkInConfirmationModal 
+            isOpen={showConfirmModal}
+            onClose={() => setShowConfirmModal(false)}
+            onConfirm={handleFinalConfirm}
+            formData={formData}
+            cart={cart}
+            total={calculateTotal()}
+            loading={loading}
+        />
+
+        <WalkInSuccessModal
+            isOpen={showSuccess}
+            onClose={handleCloseSuccess}
+            transactionRef={transactionRef}
         />
 
         <div className="flex justify-between items-center mb-2">

@@ -86,7 +86,7 @@ export const MobileTransactionModal = ({ transaction, isOpen, onClose, onViewPro
 
             {/* Schedule */}
             <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
-              <div className="flex items-center gap-2 mb-3 pb-2 border-b border-gray-100">
+              <div className="flex items-center gap-2 mb-3 pb-2 border-b border-gray-200">
                 <Calendar size={16} className="text-gray-500" />
                 <h4 className="font-bold text-gray-700 text-sm uppercase tracking-wide">Schedule</h4>
               </div>
@@ -137,7 +137,7 @@ export const MobileTransactionModal = ({ transaction, isOpen, onClose, onViewPro
             )}
 
             <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
-              <div className="flex items-center justify-between mb-3 pb-2 border-b border-gray-100">
+              <div className="flex items-center justify-between mb-3 pb-2 border-b border-gray-200">
                 <div className="flex items-center gap-2">
                   <CreditCard size={16} className="text-gray-500" />
                   <h4 className="font-bold text-gray-700 text-sm uppercase tracking-wide">Payment</h4>
@@ -442,7 +442,7 @@ export const DetailModal = ({ isOpen, transaction, onClose, viewType }) => {
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col max-h-[85vh]">
         
         {/* Header */}
-        <div className="px-6 py-5 border-b border-gray-100 flex justify-between items-center bg-white">
+        <div className="px-6 py-5 border-b border-gray-200 flex justify-between items-center bg-white">
           <h3 className="font-bold text-xl text-slate-800 flex items-center gap-2">
             <TitleIcon className={iconColor} size={24}/>
             {title}
@@ -453,7 +453,7 @@ export const DetailModal = ({ isOpen, transaction, onClose, viewType }) => {
         {/* Body */}
         <div className="p-6 overflow-y-auto custom-scrollbar bg-white">
           
-          <div className="mb-6 border-b border-gray-50 pb-4">
+          <div className="mb-6 border-b border-gray-100 pb-4">
             <h2 className="text-2xl font-bold text-slate-900">{transaction.customer_name}</h2>
             <div className="flex justify-between items-center mt-1">
                <p className="text-xs text-gray-400 uppercase tracking-wider font-semibold">REF: {transaction.transaction_ref}</p>
@@ -474,15 +474,15 @@ export const DetailModal = ({ isOpen, transaction, onClose, viewType }) => {
               {guestCount > 0 && (
                 <div className="flex justify-between items-center py-3 px-2 rounded-lg hover:bg-gray-50">
                   <div className="flex items-center gap-2">
-                     <span className="bg-blue-50 text-blue-600 text-[10px] px-1.5 py-0.5 rounded font-bold">{guestCount}</span>
-                     <span className="font-medium text-slate-700 text-sm">Entrance Fee (₱50)</span>
+                      <span className="bg-blue-50 text-blue-600 text-[10px] px-1.5 py-0.5 rounded font-bold">{guestCount}</span>
+                      <span className="font-medium text-slate-700 text-sm">Entrance Fee (₱50)</span>
                   </div>
                   <span className="font-bold text-slate-900 text-sm">₱{entranceFee.toLocaleString()}</span>
                 </div>
               )}
-              <div className="mt-4 flex justify-between items-end border-t border-gray-100 pt-4">
-                  <span className="text-slate-500 font-medium text-sm">Subtotal (Base)</span>
-                  <span className="text-lg font-bold text-slate-700">₱{baseTotal.toLocaleString()}</span>
+              <div className="mt-4 flex justify-between items-end border-t-2 border-dashed border-orange-200 bg-orange-50/50 p-2 rounded">
+                  <span className="text-slate-600 font-bold text-sm">Subtotal (Base)</span>
+                  <span className="text-lg font-extrabold text-orange-600">₱{baseTotal.toLocaleString()}</span>
               </div>
             </div>
           )}
@@ -502,9 +502,9 @@ export const DetailModal = ({ isOpen, transaction, onClose, viewType }) => {
                             <span className="font-bold text-purple-600 bg-purple-50 px-2 py-1 rounded text-sm">+₱{parseFloat(ext.additional_cost).toLocaleString()}</span>
                         </div>
                       ))}
-                      <div className="mt-6 flex justify-between items-end border-t border-gray-100 pt-4">
+                      <div className="mt-6 flex justify-between items-end border-t-2 border-dashed border-purple-200 bg-purple-50/50 p-2 rounded">
                           <span className="text-slate-900 font-bold">Total Extension Fees</span>
-                          <span className="text-2xl font-bold text-purple-600">₱{extensionTotal.toLocaleString()}</span>
+                          <span className="text-2xl font-extrabold text-purple-600">₱{extensionTotal.toLocaleString()}</span>
                       </div>
                   </div>
                )}
@@ -543,24 +543,24 @@ export const DetailModal = ({ isOpen, transaction, onClose, viewType }) => {
 
                     <div className="border-t border-gray-200 my-2"></div>
 
-                    <div className="flex justify-between items-center text-sm">
+                    <div className="flex justify-between items-center text-sm p-2 bg-orange-100/50 rounded border border-dashed border-orange-200">
                         <span className="text-gray-800 font-bold">Grand Total</span>
-                        <span className="font-bold text-gray-900">₱{totalAmount.toLocaleString()}</span>
+                        <span className="font-extrabold text-gray-900 text-lg">₱{totalAmount.toLocaleString()}</span>
                     </div>
 
-                    <div className="flex justify-between items-center text-sm">
+                    <div className="flex justify-between items-center text-sm p-2">
                         <span className="text-green-600 flex items-center gap-1"><Minus size={12}/> Downpayment (20%)</span>
                         <span className="font-bold text-green-600">- ₱{downpayment.toLocaleString()}</span>
                     </div>
                 </div>
 
                 {/* 3. Balance Highlight */}
-                <div className="bg-orange-50 border border-orange-100 p-4 rounded-xl flex justify-between items-center shadow-sm">
+                <div className="bg-orange-50 border-2 border-dashed border-orange-300 p-4 rounded-xl flex justify-between items-center shadow-sm">
                     <div>
                         <p className="text-orange-800 font-bold text-sm uppercase tracking-wide">Remaining Balance</p>
                         <p className="text-xs text-orange-600 opacity-80">To be paid upon check-in</p>
                     </div>
-                    <p className="text-3xl font-extrabold text-orange-600">₱{balance.toLocaleString()}</p>
+                    <p className="text-3xl font-extrabold text-orange-600 bg-white px-3 py-1 rounded shadow-sm">₱{balance.toLocaleString()}</p>
                 </div>
 
              </div>
@@ -671,7 +671,7 @@ export const ExtendModal = ({ isOpen, transaction, onClose, onExtend, loading })
 
              <div className="flex justify-between items-center">
                 <span className="text-slate-800 font-bold text-lg">Additional Fee</span>
-                <span className="text-3xl font-extrabold text-green-500">₱{additionalAmount}</span>
+                <span className="text-3xl font-extrabold text-green-500 bg-green-50 px-2 rounded border border-dashed border-green-200">₱{additionalAmount}</span>
              </div>
           </div>
 

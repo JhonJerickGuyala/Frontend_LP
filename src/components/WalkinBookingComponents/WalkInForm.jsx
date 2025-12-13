@@ -4,6 +4,8 @@ import { User, Calendar, AlertCircle, Clock } from 'lucide-react';
 const WalkInForm = ({ formData, setFormData, errors = {} }) => {
     const [durationHours, setDurationHours] = useState('');
 
+    const isSameDateTime = formData.checkInDate && formData.checkOutDate && formData.checkInDate === formData.checkOutDate;
+
     useEffect(() => {
         if (formData.checkInDate && durationHours) {
             const checkIn = new Date(formData.checkInDate);
@@ -49,8 +51,10 @@ const WalkInForm = ({ formData, setFormData, errors = {} }) => {
     };
 
     const getInputClass = (fieldName) => {
+        const hasError = errors[fieldName] || (fieldName === 'checkOutDate' && isSameDateTime);
+
         return `block w-full px-4 py-3 border rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-all sm:text-sm ${
-            errors[fieldName] ? 'border-red-500 ring-1 ring-red-500 bg-red-50' : 'border-gray-200'
+            hasError ? 'border-red-500 ring-1 ring-red-500 bg-red-50' : 'border-gray-200'
         }`;
     };
 
@@ -114,7 +118,13 @@ const WalkInForm = ({ formData, setFormData, errors = {} }) => {
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Check-out Date *</label>
                         <input type="datetime-local" value={formData.checkOutDate} onChange={handleCheckOutChange} className={getInputClass('checkOutDate')} min={formData.checkInDate} />
-                        {errors.checkOutDate && <p className="text-red-500 text-xs mt-1 ml-1 flex items-center gap-1"><AlertCircle size={12}/> {errors.checkOutDate}</p>}
+                        
+                        {(errors.checkOutDate || isSameDateTime) && (
+                            <p className="text-red-500 text-xs mt-1 ml-1 flex items-center gap-1">
+                                <AlertCircle size={12}/> 
+                                {errors.checkOutDate ? errors.checkOutDate : "Check-out cannot be the same as Check-in."}
+                            </p>
+                        )}
                     </div>
                 </div>
 
