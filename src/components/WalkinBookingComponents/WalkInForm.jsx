@@ -3,7 +3,6 @@ import { User, Calendar, AlertCircle, Clock } from 'lucide-react';
 
 const WalkInForm = ({ formData, setFormData, errors = {} }) => {
     const [durationHours, setDurationHours] = useState('');
-
     const isSameDateTime = formData.checkInDate && formData.checkOutDate && formData.checkInDate === formData.checkOutDate;
 
     useEffect(() => {
