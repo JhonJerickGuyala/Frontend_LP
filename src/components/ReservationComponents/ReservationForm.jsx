@@ -129,7 +129,7 @@ const ReservationForm = ({
           
           {/* Personal Information Card */}
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 sm:p-8">
-            <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2 mb-6 border-b pb-4">
+            <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2 mb-6 border-b border-gray-200 pb-4">
               <User className="w-5 h-5 text-lp-orange" />
               Guest Information
             </h3>
@@ -249,7 +249,7 @@ const ReservationForm = ({
             </div>
           </div>
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 sm:p-8">
-            <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2 mb-6 border-b pb-4">
+            <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2 mb-6 border-b border-gray-200 pb-4">
               <Upload className="w-5 h-5 text-lp-orange" />
               Proof of Payment
             </h3>
@@ -400,7 +400,7 @@ const ReservationForm = ({
                         : ''}
                     </span>
                   </div>
-                  <div className="flex justify-between text-gray-900 font-bold text-base border-t pt-2">
+                  <div className="flex justify-between text-gray-900 font-bold text-base border-t border-gray-200 pt-2">
                     <span>Grand Total</span>
                     <span>
                       {cart.length > 0 ? `₱${calculateTotal().toLocaleString()}` : ''}
