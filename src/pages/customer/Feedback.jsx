@@ -234,7 +234,7 @@ const Feedback = () => {
       </section>
 
       <div className="flex-grow w-full px-4 sm:px-6 py-8 lg:py-12">
-        {/* MOBILE ANALYTICS*/}
+        {/* MOBILE ANALYTICS (Preserved for small screens) */}
         <div className="lg:hidden mb-8">
           <div className="bg-white p-6 shadow-sm border border-gray-200">
             <h3 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2"><BarChart3 size={24} className="text-[#ea580c]" />Guest Ratings</h3>
@@ -266,9 +266,39 @@ const Feedback = () => {
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 w-full">
           
-          {/* --- LEFT SIDE: FORM OR LOCKED MESSAGE --- */}
-          <div className="lg:col-span-5">
-            <div className="bg-white shadow-lg border border-gray-100 lg:sticky lg:top-6">
+          {/* --- LEFT SIDE: RATINGS (Top) + FORM (Bottom) --- */}
+          <div className="lg:col-span-5 flex flex-col gap-6 lg:sticky lg:top-6 h-fit">
+            
+            {/* 1. GUEST RATINGS (Moved to Upper Left) */}
+            <div className="hidden lg:block bg-white p-6 shadow-sm border border-gray-200">
+              <h3 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2"><BarChart3 size={24} className="text-[#ea580c]" />Guest Ratings</h3>
+              <div className="flex flex-col md:flex-row items-center gap-6 mb-8">
+                <div className="relative w-32 h-32">
+                  <svg className="w-full h-full transform -rotate-90">
+                    <circle cx="50%" cy="50%" r="45%" stroke="#f3f4f6" strokeWidth="8" fill="transparent" />
+                    <circle cx="50%" cy="50%" r="45%" stroke="#ea580c" strokeWidth="8" fill="transparent" strokeDasharray={351} strokeDashoffset={351 - (351 * getOverallAverage()) / 5} className="transition-all duration-1000 ease-out" />
+                  </svg>
+                  <div className="absolute inset-0 flex flex-col items-center justify-center">
+                    <span className="text-4xl font-bold text-[#ea580c]">{getOverallAverage()}</span>
+                    <span className="text-sm text-gray-500 mt-1">out of 5</span>
+                  </div>
+                </div>
+                <div className="flex-1 space-y-4">
+                  {categories.map((cat) => {
+                    const avg = getCategoryAverage(cat.id);
+                    return (
+                      <div key={cat.id}>
+                        <div className="flex justify-between text-sm mb-1"><span className="font-medium text-gray-700">{cat.label}</span><span className="font-bold text-gray-900">{avg}/5</span></div>
+                        <div className="h-2 w-full bg-gray-100 overflow-hidden"><div className="h-full bg-gradient-to-r from-[#ea580c] to-[#f97316]" style={{ width: `${(avg / 5) * 100}%` }} /></div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
+            {/* 2. FEEDBACK FORM / LOCKED STATE (Moved to Bottom Left) */}
+            <div className="bg-white shadow-lg border border-gray-100">
               
               {/* HEADER (Preserved Design) */}
               <div className="bg-[#ea580c] p-5 lg:p-6 text-white">
@@ -361,36 +391,8 @@ const Feedback = () => {
             </div>
           </div>
 
-          {/* --- RIGHT SIDE: ANALYTICS & REVIEWS (Preserved) --- */}
+          {/* --- RIGHT SIDE: REVIEWS LIST (Occupies whole right column) --- */}
           <div className="lg:col-span-7 space-y-6">
-            <div className="hidden lg:block bg-white p-6 shadow-sm border border-gray-200">
-              <h3 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2"><BarChart3 size={24} className="text-[#ea580c]" />Guest Ratings</h3>
-              <div className="flex flex-col md:flex-row items-center gap-6 mb-8">
-                <div className="relative w-32 h-32">
-                  <svg className="w-full h-full transform -rotate-90">
-                    <circle cx="50%" cy="50%" r="45%" stroke="#f3f4f6" strokeWidth="8" fill="transparent" />
-                    <circle cx="50%" cy="50%" r="45%" stroke="#ea580c" strokeWidth="8" fill="transparent" strokeDasharray={351} strokeDashoffset={351 - (351 * getOverallAverage()) / 5} className="transition-all duration-1000 ease-out" />
-                  </svg>
-                  <div className="absolute inset-0 flex flex-col items-center justify-center">
-                    <span className="text-4xl font-bold text-[#ea580c]">{getOverallAverage()}</span>
-                    <span className="text-sm text-gray-500 mt-1">out of 5</span>
-                  </div>
-                </div>
-                <div className="flex-1 space-y-4">
-                  {categories.map((cat) => {
-                    const avg = getCategoryAverage(cat.id);
-                    return (
-                      <div key={cat.id}>
-                        <div className="flex justify-between text-sm mb-1"><span className="font-medium text-gray-700">{cat.label}</span><span className="font-bold text-gray-900">{avg}/5</span></div>
-                        <div className="h-2 w-full bg-gray-100 overflow-hidden"><div className="h-full bg-gradient-to-r from-[#ea580c] to-[#f97316]" style={{ width: `${(avg / 5) * 100}%` }} /></div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-
-            {/* REVIEWS LIST */}
             <div className="mt-8 lg:mt-0">
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
                 <div><h3 className="text-xl font-bold text-gray-800 mb-1">Guest Reviews</h3><p className="text-sm text-gray-500">What other guests are saying</p></div>
