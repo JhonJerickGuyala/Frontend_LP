@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import api from '../../config/axios';
 import { 
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
@@ -14,7 +14,6 @@ const OwnerAnalytics = () => {
   const [periodLabel, setPeriodLabel] = useState('vs last month');
   const [activeFilter, setActiveFilter] = useState('month'); 
   
-  // Extension Modal State
   const [extensionModal, setExtensionModal] = useState(null); 
 
   const [dateRange, setDateRange] = useState(() => {
@@ -55,12 +54,10 @@ const OwnerAnalytics = () => {
   };
 
 
-  // --- UPDATED: AGGRESSIVE SCROLL LOCK ---
-  // Tina-target na nito pati <html> tag para sure na walang gagalaw
   useEffect(() => {
     if (extensionModal) {
       document.body.style.overflow = 'hidden';
-      document.documentElement.style.overflow = 'hidden'; // Lock html tag also
+      document.documentElement.style.overflow = 'hidden'; 
     } else {
       document.body.style.overflow = '';
       document.documentElement.style.overflow = '';
@@ -385,8 +382,7 @@ const OwnerAnalytics = () => {
                 <h3 className="font-bold text-slate-800 flex items-center gap-2">
                     <Filter size={18} className="text-orange-500"/> Transaction History
                 </h3>
-                
-                {/* Segmented Control */}
+
                 <div className="flex p-1 bg-slate-200/60 rounded-lg w-full sm:w-auto overflow-x-auto">
                     {['All', 'Online', 'Walk-in'].map(tab => (
                         <button 
@@ -435,7 +431,6 @@ const OwnerAnalytics = () => {
                                 }`}>{t.booking_type}</span>
                             </td>
                             
-                            {/* --- MODIFIED DETAILS COLUMN --- */}
                             <td className="px-6 py-4 align-top">
                                 <p className="text-xs text-slate-600 font-medium line-clamp-2 max-w-[200px]" title={t.amenities_summary}>{t.amenities_summary || "No amenities"}</p>
                                 
@@ -470,7 +465,6 @@ const OwnerAnalytics = () => {
       {/* --- EXTENSION MODAL COMPONENT --- */}
       {extensionModal && (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/40 backdrop-blur-[2px] p-4 animate-in fade-in duration-200 overscroll-contain">
-            {/* Click outside to close */}
             <div className="absolute inset-0" onClick={() => setExtensionModal(null)}></div>
 
             <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden border border-slate-100 animate-in zoom-in-95 duration-200 relative z-10">
