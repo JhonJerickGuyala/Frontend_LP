@@ -1,5 +1,5 @@
 import React from "react";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useNavigate } from "react-router-dom"; // Added useNavigate
 import { AuthProvider, useAuth } from "./pages/AuthContext";
 import Auth from "./pages/Auth";
 import ResetPassword from "./pages/ResetPassword";
@@ -13,9 +13,6 @@ import CustomerDashboard from "./pages/customer/CustomerDashboard";
 import ReceptionistDashboard from "./pages/receptionist/ReceptionistDashboard"; 
 import OwnerDashboard from "./pages/owner/OwnerDashboard"; 
 
-// NOTE: Tinanggal na natin ang FeedbackModal import at Wrapper
-
-// --- PROTECTED ROUTE (Retain lang natin to) ---
 const ProtectedRoute = ({ children, requiredRole }) => {
     const { user, loading } = useAuth();
 
@@ -33,14 +30,27 @@ const ProtectedRoute = ({ children, requiredRole }) => {
     return children;
 };
 
-// --- UNAUTHORIZED PAGE ---
+// --- UNAUTHORIZED PAGE (UPDATED WITH LOGOUT & REDIRECT) ---
 const UnauthorizedPage = () => {
     const { logout } = useAuth();
+    const navigate = useNavigate(); // Para makapag-redirect
+
+    const handleLogout = () => {
+        logout();       // Clear session
+        navigate('/');  // Redirect to Login page immediately
+    };
+
     return (
         <div className="min-h-screen flex items-center justify-center bg-gray-100">
             <div className="bg-white p-8 rounded-lg shadow-md text-center">
                 <h1 className="text-2xl font-bold text-red-600 mb-2">Unauthorized Access</h1>
-                <button onClick={() => logout()} className="mt-4 bg-orange-500 text-white px-4 py-2 rounded">Logout</button>
+                <p className="text-gray-600 mb-4 text-sm">You do not have permission to view this page.</p>
+                <button 
+                    onClick={handleLogout} 
+                    className="mt-2 bg-orange-500 hover:bg-orange-600 text-white px-6 py-2 rounded transition-colors font-bold"
+                >
+                    Logout
+                </button>
             </div>
         </div>
     );
@@ -51,7 +61,6 @@ function App() {
     return (
         <AuthProvider>
             <BrowserRouter>
-                {/* TINANGGAL NA ANG <GlobalFeedbackWrapper /> DITO */}
 
                 <Routes>
                     <Route path="/" element={<Auth />} />
