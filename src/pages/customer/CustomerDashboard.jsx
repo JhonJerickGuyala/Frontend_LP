@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import api from "../../config/axios";
 import { Loader2, CheckCircle2 } from "lucide-react";
 import { useAuth } from "../AuthContext";
@@ -35,117 +35,137 @@ const CustomerDashboard = () => {
     const [showFeedbackSuccess, setShowFeedbackSuccess] = useState(false);
     const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
     
-    // Transaction Ref para sa Review (Galing sa Auto-Check o Button Click)
+    // Transaction Ref para sa Review
     const [transactionRef, setTransactionRef] = useState(null); 
 
-    // --- 1. FETCH PUBLIC DATA (Reviews & Amenities) ---
-    useEffect(() => {
-        const fetchData = async () => {
-            try {
+    // --- FUNCTION 1: FETCH PUBLIC DATA (Amenities & Reviews) ---
+    const fetchPublicData = useCallback(async (isBackground = false) => {
+        try {
+            if (!isBackground) {
                 setIsLoadingReviews(true);
                 setIsLoadingData(true);
+            }
 
-                // A. Featured Amenities
-                try {
-                    const response = await api.get('/api/amenities/featured');
-                    if (response.data && response.data.length > 0) {
-                        setFeaturedAmenities(response.data);
-                    } else { throw new Error("No data"); }
-                } catch (err) {
-                    console.log("Featured amenities error (using fallback):", err);
+            // TRICK: Add ?t=Timestamp para iwas cache
+            const timestamp = new Date().getTime();
+
+            // A. Featured Amenities
+            try {
+                const response = await api.get(`/api/amenities/featured?t=${timestamp}`);
+                if (response.data && response.data.length > 0) {
+                    setFeaturedAmenities(response.data);
+                }
+            } catch (err) {
+                if (!isBackground) console.log("Amenities fallback used");
+                if (featuredAmenities.length === 0) {
                     setFeaturedAmenities([
                         { id: 1, name: "Refreshing Pool", description: "Dive into relaxation.", image: "pool.png" },
                         { id: 2, name: "Grand Event Hall", description: "Perfect venue for celebrations.", image: "eventhall.png" },
                         { id: 3, name: "Relaxing Cottage", description: "Comfort in native style.", image: "cottage.png" },
                     ]);
                 }
-
-                // B. Public Reviews
-                try {
-                    const reviewsRes = await api.get('/api/feedbacks');
-                    const rawReviews = Array.isArray(reviewsRes.data) ? reviewsRes.data : [];
-                    
-                    const formattedReviews = rawReviews.map(review => ({
-                        id: review.id,
-                        name: review.customer_name || review.name || "Guest",
-                        average: review.average,
-                        comment: review.comment,
-                        date: review.date ? new Date(review.date).toLocaleDateString() : new Date().toLocaleDateString(),
-                        ratings: {
-                            service: review.service || 5,
-                            cleanliness: review.cleanliness || 5,
-                            amenities: review.amenities || 5
-                        }
-                    }));
-                    // Show only high ratings (4.0+)
-                    setReviews(formattedReviews.filter(r => parseFloat(r.average) >= 4.0));
-                } catch (error) { 
-                    console.log("Error fetching reviews:", error);
-                    setReviews([]); 
-                }
-
-            } catch (error) { console.error(error); }
-            finally { setIsLoadingReviews(false); setIsLoadingData(false); }
-        };
-        fetchData();
-    }, []);
-
-    // --- 2. AUTO-CHECK ELIGIBILITY (Auto-Popup Logic) ---
-    useEffect(() => {
-        const checkEligibility = async () => {
-            if (!user || !user.id || isReviewModalOpen) return;
-
-            try {
-                const res = await api.get(`/api/reservations/user/${user.id}`);
-                
-                // Safety Check: Ensure array
-                let bookings = [];
-                if (Array.isArray(res.data)) bookings = res.data;
-                else if (res.data && Array.isArray(res.data.reservations)) bookings = res.data.reservations;
-                else if (res.data && Array.isArray(res.data.data)) bookings = res.data.data;
-
-                // Filter Active & Newest
-                const activeBookings = bookings
-                    .filter(b => ['checked-in', 'completed'].includes(b.status?.toLowerCase()))
-                    .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-
-                for (const booking of activeBookings) {
-                    if (!booking.transaction_ref) continue;
-                    try {
-                        const checkRes = await api.get(`/api/feedbacks/check-status/${booking.transaction_ref}`);
-                        if (checkRes.data.hasFeedback === false) {
-                            console.log("Eligible booking found (Auto):", booking.transaction_ref);
-                            setTransactionRef(booking.transaction_ref); 
-                            setIsReviewModalOpen(true); 
-                            break; 
-                        }
-                    } catch (err) {
-                        console.error("Skipping check for ref:", booking.transaction_ref , err);
-                    }
-                }
-            } catch (error) {
-                console.error("Error checking eligibility:", error);
             }
-        };
 
-        if (user) {
-            checkEligibility();
+            // B. Public Reviews
+            try {
+                const reviewsRes = await api.get(`/api/feedbacks?t=${timestamp}`);
+                const rawReviews = Array.isArray(reviewsRes.data) ? reviewsRes.data : [];
+                
+                const formattedReviews = rawReviews.map(review => ({
+                    id: review.id,
+                    name: review.customer_name || review.name || "Guest",
+                    average: review.average,
+                    comment: review.comment,
+                    date: review.date ? new Date(review.date).toLocaleDateString() : new Date().toLocaleDateString(),
+                    ratings: {
+                        service: review.service || 5,
+                        cleanliness: review.cleanliness || 5,
+                        amenities: review.amenities || 5
+                    }
+                }));
+                // Show only high ratings (4.0+)
+                setReviews(formattedReviews.filter(r => parseFloat(r.average) >= 4.0));
+            } catch (error) { 
+                console.log("Error fetching reviews:", error);
+            }
+
+        } catch (error) { 
+            console.error(error); 
+        } finally { 
+            if (!isBackground) {
+                setIsLoadingReviews(false); 
+                setIsLoadingData(false); 
+            }
         }
-    }, [user]); 
+    }, []); 
 
-    // --- 3. HANDLE SUBMIT ---
+    // --- FUNCTION 2: CHECK ELIGIBILITY (Reservation Status - Auto Update) ---
+    const checkEligibility = useCallback(async () => {
+        if (!user || !user.id || isReviewModalOpen) return;
+
+        try {
+            const timestamp = new Date().getTime();
+            const res = await api.get(`/api/reservations/user/${user.id}?refresh=${timestamp}`);
+            
+            console.log(`[Auto-Refresh ${new Date().toLocaleTimeString()}] Checking bookings...`); // Para makita mo sa console na gumagana
+
+            let bookings = [];
+            if (Array.isArray(res.data)) bookings = res.data;
+            else if (res.data && Array.isArray(res.data.reservations)) bookings = res.data.reservations;
+            else if (res.data && Array.isArray(res.data.data)) bookings = res.data.data;
+
+            // Filter Active & Newest
+            const activeBookings = bookings
+                .filter(b => ['checked-in', 'completed'].includes(b.status?.toLowerCase()))
+                .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+            for (const booking of activeBookings) {
+                if (!booking.transaction_ref) continue;
+                try {
+                    // Check status din with cache busting
+                    const checkRes = await api.get(`/api/feedbacks/check-status/${booking.transaction_ref}?t=${timestamp}`);
+                    
+                    if (checkRes.data.hasFeedback === false) {
+                        console.log("🔥 STATUS CHANGED! Showing Feedback Modal for:", booking.transaction_ref);
+                        setTransactionRef(booking.transaction_ref); 
+                        setIsReviewModalOpen(true); 
+                        break; 
+                    }
+                } catch (err) {
+                    // Silent fail
+                }
+            }
+        } catch (error) {
+            console.error("Error checking eligibility:", error);
+        }
+    }, [user, isReviewModalOpen]);
+
+    // --- EFFECT: INITIAL LOAD & INTERVAL (AUTO REFRESH) ---
+    useEffect(() => {
+        // 1. Initial Load
+        fetchPublicData(false);
+        if (user) checkEligibility();
+
+        const intervalId = setInterval(() => {
+            // Fetch data silently
+            fetchPublicData(true);
+            if (user) checkEligibility();
+        }, 3000); 
+
+        return () => clearInterval(intervalId);
+    }, [fetchPublicData, checkEligibility, user]);
+
+
+    // --- HANDLE SUBMIT ---
     const handleReviewSubmit = async (payload) => {
         setIsSubmitting(true);
         try {
-            // Include transaction_ref
             const finalPayload = {
                 ...payload,
                 transaction_ref: transactionRef 
             };
 
             const response = await api.post('/api/feedbacks', finalPayload);
-            
-            // SUCCESS: Update UI & Close
             console.log("Review Submitted:", response.data);
 
             if (payload.rating >= 4) {
@@ -160,11 +180,13 @@ const CustomerDashboard = () => {
                 setReviews(prev => [newReview, ...prev]);
             }
             
-            // IMPORTANT: Close modal immediately
             setIsReviewModalOpen(false);
             setTransactionRef(null); 
             setShowFeedbackSuccess(true);
             setTimeout(() => setShowFeedbackSuccess(false), 3000);
+
+            // Force refresh immediately
+            fetchPublicData(true);
 
         } catch (error) {
             console.error("Submission error:", error);
@@ -196,7 +218,6 @@ const CustomerDashboard = () => {
                 <FeedbackSection 
                     reviews={reviews} 
                     isLoading={isLoadingReviews} 
-                    // UPDATED: Tanggapin ang REF mula sa button click
                     onOpenModal={(ref) => {
                         console.log("Opening modal manually for ref:", ref);
                         setTransactionRef(ref); 
