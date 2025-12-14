@@ -226,8 +226,10 @@ const ReservationsModal = ({ isOpen, onClose, reservations, onCancelReservation,
   return (
     <>
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-2 sm:p-3 md:p-4 font-body">
+        {/* Main Modal Container - Fixed Height */}
         <div className="bg-white rounded-lg shadow-xl max-w-7xl w-full h-[85vh] max-h-[85vh] flex flex-col">
           
+          {/* Header (Fixed) */}
           <div className="p-4 sm:p-5 border-b border-gray-200 flex justify-between items-center bg-white rounded-t-lg flex-shrink-0">
             <div>
               <h3 className="text-xl sm:text-2xl font-bold text-gray-900">My Reservations</h3>
@@ -236,6 +238,7 @@ const ReservationsModal = ({ isOpen, onClose, reservations, onCancelReservation,
             <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-3xl font-bold hover:bg-gray-100 w-8 h-8 rounded-full flex items-center justify-center">×</button>
           </div>
 
+          {/* Tabs (Fixed) */}
           <div className="flex border-b border-gray-200 flex-shrink-0">
             <button onClick={() => setActiveTab('active')} className={`flex-1 py-3 font-semibold flex items-center justify-center gap-2 ${activeTab === 'active' ? 'text-lp-orange border-b-2 border-lp-orange bg-orange-50/50' : 'text-gray-500 hover:bg-gray-50'}`}>
               <Clock className="w-4 h-4" /> Active Bookings <span className="bg-gray-100 text-xs rounded-full px-2">{activeReservations.length}</span>
@@ -245,13 +248,15 @@ const ReservationsModal = ({ isOpen, onClose, reservations, onCancelReservation,
             </button>
           </div>
 
-          <div className={`flex-1 bg-gray-50 ${selectedReceipt ? 'overflow-hidden' : 'overflow-y-scroll'}`}>
+          {/* Body (Scrollable) - Updated Class */}
+          <div className={`flex-1 bg-gray-50 ${selectedReceipt ? 'overflow-hidden' : 'overflow-y-auto'}`}>
             {currentList.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full text-center p-6 min-h-[300px]">
                 <p className="text-gray-900 font-medium text-lg">No {activeTab} reservations found</p>
               </div>
             ) : (
-              <div className="align-middle inline-block min-w-full">
+              // REMOVED 'inline-block' to fix width issues
+              <div className="min-w-full">
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-100 sticky top-0 z-10 shadow-sm">
                     <tr>
@@ -310,6 +315,7 @@ const ReservationsModal = ({ isOpen, onClose, reservations, onCancelReservation,
             )}
           </div>
 
+          {/* Footer (Fixed) */}
           <div className="p-4 border-t border-gray-200 bg-white rounded-b-lg flex justify-end flex-shrink-0">
             <button onClick={onClose} className="px-5 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 text-sm">Close</button>
           </div>

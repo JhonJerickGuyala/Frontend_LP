@@ -3,7 +3,7 @@ import { useAuth } from "../AuthContext";
 import { useNavigate, useLocation } from "react-router-dom";
 import Header from "../../components/Header.jsx";
 import Footer from "../../components/Footer.jsx";
-import api from "../../config/axios"; // Import axios instance
+import api from "../../config/axios"; 
 
 // Import Components
 import HeroSection from "../../components/ReservationComponents/HeroSection.jsx";
@@ -52,7 +52,6 @@ const Reservations = () => {
   const [reservationCount, setReservationCount] = useState(0);
   const [isLoadingReservations, setIsLoadingReservations] = useState(false);
   
-  // ✅ FIX: Pinalitan ang isCartLoaded ng loadedUserKey para track kung kaninong cart ang nasa screen
   const [loadedUserKey, setLoadedUserKey] = useState(null);
 
   // Load user data from AuthContext
@@ -65,7 +64,7 @@ const Reservations = () => {
     }
   }, [user]);
 
-  // ✅ FIX: Load Cart based on User Identity
+  // Load Cart based on User Identity
   useEffect(() => {
     const userId = user?.id || user?._id || user?.userId;
     const storageKey = userId ? `cart_${userId}` : "cart_guest";
@@ -93,7 +92,7 @@ const Reservations = () => {
     setLoadedUserKey(storageKey);
   }, [user]);
 
-  // ✅ FIX: Save Cart based on User Identity with Guard Clause
+
   useEffect(() => {
     const userId = user?.id || user?._id || user?.userId;
     const currentKey = userId ? `cart_${userId}` : "cart_guest";
@@ -575,7 +574,7 @@ const Reservations = () => {
 
   // Auto-add selected amenity with cleanup
   useEffect(() => {
-    if (selectedAmenity && loadedUserKey) { // Ensure cart is loaded before adding
+    if (selectedAmenity && loadedUserKey) { 
       handleAddToCart(selectedAmenity);
       navigate(location.pathname, { replace: true, state: {} });
     }
