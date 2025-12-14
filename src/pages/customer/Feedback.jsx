@@ -269,8 +269,10 @@ const Feedback = () => {
         
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 w-full">
           
+          {/* --- COLUMN 1 (LEFT): GUEST RATINGS (SMALL) & FORM (5/12) --- */}
           <div className="lg:col-span-5 space-y-6">
-           
+            
+            {/* UPPER LEFT: GUEST RATINGS (Compact/Small) */}
             <div className="bg-white p-5 shadow-sm border border-gray-200">
               <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2"><BarChart3 size={20} className="text-[#ea580c]" />Guest Ratings</h3>
               <div className="flex items-center gap-4">
@@ -298,7 +300,7 @@ const Feedback = () => {
               </div>
             </div>
 
-
+            {/* LOWER LEFT: FORM OR LOCKED MESSAGE (Sticky) */}
             <div className="bg-white shadow-lg border border-gray-100 lg:sticky lg:top-6">
               
               {/* HEADER */}
@@ -316,6 +318,7 @@ const Feedback = () => {
                 </div>
               </div>
 
+              {/* --- CONDITION: SHOW FORM OR LOCKED STATE --- */}
               {eligibility.canReview ? (
                   <div className="p-5 lg:p-6 relative">
                     {showSuccess && (
@@ -388,9 +391,11 @@ const Feedback = () => {
               )}
             </div>
           </div>
-}
-          <div className="lg:col-span-7 space-y-6">
 
+          {/* --- COLUMN 2 (RIGHT): REVIEWS (7/12) --- */}
+          <div className="lg:col-span-7 space-y-6">
+            
+            {/* REVIEWS LIST & FILTERS */}
             <div>
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
                 <div><h3 className="text-xl font-bold text-gray-800 mb-1">Guest Reviews</h3><p className="text-sm text-gray-500">What other guests are saying</p></div>
