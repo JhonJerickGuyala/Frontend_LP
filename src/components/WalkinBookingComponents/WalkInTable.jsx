@@ -3,8 +3,8 @@ import PropTypes from 'prop-types';
 import api from '../../config/axios';
 import { Eye, Clock, Plus, Info, LogIn, Ban, LogOut, ChevronRight, Loader2, CheckCircle, AlertCircle, X } from 'lucide-react';
 
-import { 
-  WalkInModal, 
+// IMPORT FIX: MobileWalkinModal (default) and other named exports
+import MobileWalkinModal, { 
   CheckInModal, 
   ExtendModal, 
   ProofModal, 
@@ -196,7 +196,8 @@ const WalkinTable = ({ searchQuery = '', viewMode = 'active', statusFilter = 'Al
         </div>
       </div>
 
-      <WalkInModal 
+      {/* RENDER MODALS */}
+      <MobileWalkinModal 
         transaction={selectedTransaction} 
         isOpen={modals.details} 
         loading={isActionDisabled} 
