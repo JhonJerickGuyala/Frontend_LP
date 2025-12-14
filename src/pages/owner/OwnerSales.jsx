@@ -259,8 +259,8 @@ const OwnerAnalytics = () => {
         </div>
 
         {/* TRANSACTION TABLE */}
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-            <div className="p-4 sm:p-6 border-b border-slate-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-slate-50/50">
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col h-[600px]"> {/* Set fixed height for the card */}
+            <div className="p-4 sm:p-6 border-b border-slate-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-slate-50/50 shrink-0">
                 <h3 className="font-bold text-slate-800 flex items-center gap-2"><Filter size={18} className="text-orange-500"/> Transaction History</h3>
                 <div className="flex p-1 bg-slate-200/60 rounded-lg w-full sm:w-auto overflow-x-auto">
                     {['All', 'Online', 'Walk-in'].map(tab => (
@@ -273,57 +273,59 @@ const OwnerAnalytics = () => {
                     ))}
                 </div>
             </div>
-            <div className="overflow-x-auto">
+            
+            {/* Scrollable Container */}
+            <div className="overflow-auto flex-1 relative"> 
                 <table className="w-full text-left border-collapse min-w-[800px]">
-                <thead className="bg-slate-50 text-slate-500 border-b border-slate-200 uppercase text-[10px] tracking-wider font-bold">
-                    <tr>
-                        <th className="px-6 py-4">Reference</th>
-                        <th className="px-6 py-4">Customer</th>
-                        <th className="px-6 py-4">Details</th>
-                        <th className="px-6 py-4 text-right">Amount</th>
-                        <th className="px-6 py-4 text-right">Downpayment</th>
-                        <th className="px-6 py-4 text-right">Balance</th>
-                        <th className="px-6 py-4 text-center">Status</th>
-                    </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                    {sortedTableData.length === 0 ? ( <tr><td colSpan="7" className="text-center py-12 text-slate-400 italic">No transactions found.</td></tr> ) : (
-                        sortedTableData.map(t => (
-                            <tr key={t.id} className="group hover:bg-orange-50/10 transition-colors">
-                            <td className="px-6 py-4 align-top"><span className="font-medium text-slate-700 text-xs font-mono bg-slate-100 px-2 py-1 rounded border border-slate-200 whitespace-nowrap">{t.transaction_ref}</span><p className="text-[10px] text-slate-400 mt-2 flex items-center gap-1 whitespace-nowrap"><Clock size={10}/>{t.formatted_date}</p></td>
-                            <td className="px-6 py-4 align-top"><p className="font-bold text-slate-700 text-sm whitespace-nowrap">{t.customer_name}</p><span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full inline-block mt-1 ${t.booking_type === 'Online' ? 'bg-blue-50 text-blue-600' : 'bg-emerald-50 text-emerald-600'}`}>{t.booking_type}</span></td>
-                            
-                            {/* DETAILS COLUMN */}
-                            <td className="px-6 py-4 align-top">
-                                <p className="text-xs text-slate-600 font-medium line-clamp-2 max-w-[200px]" title={t.amenities_summary}>{t.amenities_summary || "No amenities"}</p>
-                                {t.extensions && t.extensions.length > 0 && ( 
-                                    <button onClick={() => setExtensionModal({ ref: t.transaction_ref, data: t.extensions })} className="mt-2 text-[10px] text-purple-600 font-bold bg-purple-50 px-2 py-1 rounded border border-purple-100 hover:bg-purple-100 hover:border-purple-200 transition-colors flex items-center gap-1 w-fit cursor-pointer">
-                                        <RefreshCw size={10}/> View {t.extensions.length} Extensions
-                                    </button> 
-                                )}
-                            </td>
+                    <thead className="bg-slate-50 text-slate-500 border-b border-slate-200 uppercase text-[10px] tracking-wider font-bold sticky top-0 z-10 shadow-sm">
+                        <tr>
+                            <th className="px-6 py-4 bg-slate-50">Reference</th>
+                            <th className="px-6 py-4 bg-slate-50">Customer</th>
+                            <th className="px-6 py-4 bg-slate-50">Details</th>
+                            <th className="px-6 py-4 text-right bg-slate-50">Amount</th>
+                            <th className="px-6 py-4 text-right bg-slate-50">Downpayment</th>
+                            <th className="px-6 py-4 text-right bg-slate-50">Balance</th>
+                            <th className="px-6 py-4 text-center bg-slate-50">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                        {sortedTableData.length === 0 ? ( <tr><td colSpan="7" className="text-center py-12 text-slate-400 italic">No transactions found.</td></tr> ) : (
+                            sortedTableData.map(t => (
+                                <tr key={t.id} className="group hover:bg-orange-50/10 transition-colors">
+                                    <td className="px-6 py-4 align-top"><span className="font-medium text-slate-700 text-xs font-mono bg-slate-100 px-2 py-1 rounded border border-slate-200 whitespace-nowrap">{t.transaction_ref}</span><p className="text-[10px] text-slate-400 mt-2 flex items-center gap-1 whitespace-nowrap"><Clock size={10}/>{t.formatted_date}</p></td>
+                                    <td className="px-6 py-4 align-top"><p className="font-bold text-slate-700 text-sm whitespace-nowrap">{t.customer_name}</p><span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full inline-block mt-1 ${t.booking_type === 'Online' ? 'bg-blue-50 text-blue-600' : 'bg-emerald-50 text-emerald-600'}`}>{t.booking_type}</span></td>
+                                    
+                                    {/* DETAILS COLUMN */}
+                                    <td className="px-6 py-4 align-top">
+                                        <p className="text-xs text-slate-600 font-medium line-clamp-2 max-w-[200px]" title={t.amenities_summary}>{t.amenities_summary || "No amenities"}</p>
+                                        {t.extensions && t.extensions.length > 0 && ( 
+                                            <button onClick={() => setExtensionModal({ ref: t.transaction_ref, data: t.extensions })} className="mt-2 text-[10px] text-purple-600 font-bold bg-purple-50 px-2 py-1 rounded border border-purple-100 hover:bg-purple-100 hover:border-purple-200 transition-colors flex items-center gap-1 w-fit cursor-pointer">
+                                                <RefreshCw size={10}/> View {t.extensions.length} Extensions
+                                            </button> 
+                                        )}
+                                    </td>
 
-                            {/* AMOUNT COLUMN - WITH MODAL TRIGGER */}
-                            <td className="px-6 py-4 text-right align-top">
-                                <div 
-                                    onClick={() => setAmountModal(t)} 
-                                    className="flex items-center justify-end gap-1 cursor-pointer group/amt"
-                                    title="Click for Amount Breakdown"
-                                >
-                                    <p className="font-bold text-slate-900 text-sm whitespace-nowrap group-hover/amt:text-orange-600 transition-colors">
-                                        ₱{parseFloat(t.total_amount).toLocaleString()}
-                                    </p>
-                                    <Info size={14} className="text-slate-400 group-hover/amt:text-orange-500 transition-colors" />
-                                </div>
-                            </td>
+                                    {/* AMOUNT COLUMN - WITH MODAL TRIGGER */}
+                                    <td className="px-6 py-4 text-right align-top">
+                                        <div 
+                                            onClick={() => setAmountModal(t)} 
+                                            className="flex items-center justify-end gap-1 cursor-pointer group/amt"
+                                            title="Click for Amount Breakdown"
+                                        >
+                                            <p className="font-bold text-slate-900 text-sm whitespace-nowrap group-hover/amt:text-orange-600 transition-colors">
+                                                ₱{parseFloat(t.total_amount).toLocaleString()}
+                                            </p>
+                                            <Info size={14} className="text-slate-400 group-hover/amt:text-orange-500 transition-colors" />
+                                        </div>
+                                    </td>
 
-                            <td className="px-6 py-4 text-right align-top"><p className="text-slate-600 text-sm whitespace-nowrap">₱{parseFloat(t.downpayment || 0).toLocaleString(undefined, {minimumFractionDigits: 2})}</p></td>
-                            <td className="px-6 py-4 text-right align-top">{parseFloat(t.balance) > 0 ? ( <span className="text-xs font-bold text-rose-500 whitespace-nowrap">₱{parseFloat(t.balance).toLocaleString()}</span> ) : ( <span className="text-[10px] text-emerald-700 font-bold bg-emerald-50 px-2 py-1 rounded-full border border-emerald-100">PAID</span> )}</td>
-                            <td className="px-6 py-4 text-center align-top"><StatusBadge status={t.booking_status} /></td>
-                            </tr>
-                        ))
-                    )}
-                </tbody>
+                                    <td className="px-6 py-4 text-right align-top"><p className="text-slate-600 text-sm whitespace-nowrap">₱{parseFloat(t.downpayment || 0).toLocaleString(undefined, {minimumFractionDigits: 2})}</p></td>
+                                    <td className="px-6 py-4 text-right align-top">{parseFloat(t.balance) > 0 ? ( <span className="text-xs font-bold text-rose-500 whitespace-nowrap">₱{parseFloat(t.balance).toLocaleString()}</span> ) : ( <span className="text-[10px] text-emerald-700 font-bold bg-emerald-50 px-2 py-1 rounded-full border border-emerald-100">PAID</span> )}</td>
+                                    <td className="px-6 py-4 text-center align-top"><StatusBadge status={t.booking_status} /></td>
+                                </tr>
+                            ))
+                        )}
+                    </tbody>
                 </table>
             </div>
         </div>
