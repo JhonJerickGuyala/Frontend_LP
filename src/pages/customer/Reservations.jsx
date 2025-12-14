@@ -158,20 +158,17 @@ const Reservations = () => {
     fetchAvailability();
   }, [reservationForm.checkInDate, reservationForm.checkOutDate]);
 
-
-  useEffect(() => {
-    if (user && isAuthenticated) {
-      loadReservationsOnPageLoad();
-    } else {
-      setReservationCount(0);
-    }
-  }, [user, isAuthenticated]);
-
-  const loadReservationsOnPageLoad = async () => {
-    if (!user || isLoadingReservations) return;
+  // --- START MODIFIED SECTION: AUTO REFRESH LOGIC ---
+  
+  // 1. Modified function to accept isSilent parameter
+  const loadReservationsOnPageLoad = async (isSilent = false) => {
+    // If not silent (first load) and already loading, stop.
+    if (!user || (!isSilent && isLoadingReservations)) return;
     
     try {
-      setIsLoadingReservations(true);
+      // Only show spinner if NOT silent
+      if (!isSilent) setIsLoadingReservations(true);
+      
       const userId = user.id || user._id || user.userId;
       
       if (!userId) {
@@ -229,14 +226,39 @@ const Reservations = () => {
         
         setCurrentReservations(transformedReservations);
       } else {
-        setReservationCount(0);
+        if (!isSilent) setReservationCount(0);
       }
     } catch (error) {
       console.log('📱 Auto-load reservations error:', error);
     } finally {
-      setIsLoadingReservations(false);
+      if (!isSilent) setIsLoadingReservations(false);
     }
   };
+
+  // 2. Modified useEffect to include Polling (setInterval)
+  useEffect(() => {
+    let intervalId;
+
+    if (user && isAuthenticated) {
+      // First load: Show spinner
+      loadReservationsOnPageLoad(false);
+
+      // Subsequent loads: Every 3 seconds, Silent (No spinner)
+      intervalId = setInterval(() => {
+        loadReservationsOnPageLoad(true);
+      }, 3000); 
+
+    } else {
+      setReservationCount(0);
+    }
+
+    // Cleanup on unmount
+    return () => {
+      if (intervalId) clearInterval(intervalId);
+    };
+  }, [user, isAuthenticated]);
+
+  // --- END MODIFIED SECTION ---
 
   useEffect(() => {
     const activeStatuses = ['Pending', 'Confirmed', 'Paid', 'Check-in', 'Checked-In'];
@@ -527,7 +549,7 @@ const Reservations = () => {
         
         if (user && isAuthenticated) {
           setTimeout(() => {
-            loadReservationsOnPageLoad();
+            loadReservationsOnPageLoad(false);
           }, 1000);
         }
         
