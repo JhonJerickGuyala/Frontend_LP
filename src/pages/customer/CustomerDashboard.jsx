@@ -120,7 +120,7 @@ const CustomerDashboard = () => {
                             break; 
                         }
                     } catch (err) {
-                        console.error("Skipping check for ref:", booking.transaction_ref);
+                        console.error("Skipping check for ref:", booking.transaction_ref , err);
                     }
                 }
             } catch (error) {
