@@ -10,6 +10,69 @@ import ReservationForm from "../../components/ReservationComponents/ReservationF
 import CartModal from "../../components/ReservationComponents/CartModal.jsx";
 import ReservationsModal from "../../components/ReservationComponents/ReservationsModal.jsx";
 import CancellationModal from "../../components/ReservationComponents/CancellationModal.jsx"; 
+import { AlertCircle, CheckCircle, X } from "lucide-react"; // Make sure to import icons if needed, or use text
+
+// --- INTERNAL COMPONENTS FOR TOAST & CONFIRM ---
+
+const Toast = ({ message, type, onClose }) => {
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      onClose();
+    }, 3000);
+    return () => clearTimeout(timer);
+  }, [onClose]);
+
+  const bgColor = type === 'success' ? 'bg-green-500' : 'bg-red-500';
+  const icon = type === 'success' ? <CheckCircle size={20} /> : <AlertCircle size={20} />;
+
+  return (
+    <div className={`fixed top-5 right-5 z-[100] flex items-center gap-3 px-4 py-3 rounded-lg shadow-lg text-white ${bgColor} animate-in slide-in-from-right duration-300`}>
+      {icon}
+      <span className="font-medium text-sm">{message}</span>
+      <button onClick={onClose} className="ml-2 hover:bg-white/20 rounded-full p-1">
+        <X size={16} />
+      </button>
+    </div>
+  );
+};
+
+const ConfirmModal = ({ isOpen, title, message, onConfirm, onCancel }) => {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden">
+        <div className="p-5 text-center">
+          <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 mb-4">
+            <AlertCircle className="h-6 w-6 text-red-600" />
+          </div>
+          <h3 className="text-lg leading-6 font-bold text-gray-900">{title}</h3>
+          <div className="mt-2">
+            <p className="text-sm text-gray-500">{message}</p>
+          </div>
+        </div>
+        <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse gap-2">
+          <button
+            type="button"
+            className="w-full inline-flex justify-center rounded-lg border border-transparent shadow-sm px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700 focus:outline-none sm:w-auto sm:text-sm transition-colors"
+            onClick={onConfirm}
+          >
+            Yes, Confirm
+          </button>
+          <button
+            type="button"
+            className="mt-3 w-full inline-flex justify-center rounded-lg border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none sm:mt-0 sm:w-auto sm:text-sm transition-colors"
+            onClick={onCancel}
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// --- MAIN COMPONENT ---
 
 const Reservations = () => {
 
@@ -32,6 +95,17 @@ const Reservations = () => {
   
   const [hiddenHistoryIds, setHiddenHistoryIds] = useState([]);
 
+  // Toast State
+  const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
+  
+  // Confirm Modal State
+  const [confirmDialog, setConfirmDialog] = useState({ 
+    show: false, 
+    title: '', 
+    message: '', 
+    onConfirm: () => {} 
+  });
+
   const [reservationForm, setReservationForm] = useState({
     fullName: "",
     address: "",
@@ -48,6 +122,21 @@ const Reservations = () => {
   const [isLoadingReservations, setIsLoadingReservations] = useState(false);
   
   const [loadedUserKey, setLoadedUserKey] = useState(null);
+
+  // Helper to show toast
+  const showToast = (message, type = 'success') => {
+    setToast({ show: true, message, type });
+  };
+
+  // Helper to close toast
+  const closeToast = () => {
+    setToast(prev => ({ ...prev, show: false }));
+  };
+
+  // Helper to close confirm dialog
+  const closeConfirm = () => {
+    setConfirmDialog(prev => ({ ...prev, show: false }));
+  };
 
   // Load user data from AuthContext
   useEffect(() => {
@@ -158,15 +247,12 @@ const Reservations = () => {
     fetchAvailability();
   }, [reservationForm.checkInDate, reservationForm.checkOutDate]);
 
-  // --- START MODIFIED SECTION: AUTO REFRESH LOGIC ---
-  
+
   // 1. Modified function to accept isSilent parameter
   const loadReservationsOnPageLoad = async (isSilent = false) => {
-    // If not silent (first load) and already loading, stop.
     if (!user || (!isSilent && isLoadingReservations)) return;
     
     try {
-      // Only show spinner if NOT silent
       if (!isSilent) setIsLoadingReservations(true);
       
       const userId = user.id || user._id || user.userId;
@@ -240,10 +326,8 @@ const Reservations = () => {
     let intervalId;
 
     if (user && isAuthenticated) {
-      // First load: Show spinner
       loadReservationsOnPageLoad(false);
 
-      // Subsequent loads: Every 3 seconds, Silent (No spinner)
       intervalId = setInterval(() => {
         loadReservationsOnPageLoad(true);
       }, 3000); 
@@ -252,13 +336,10 @@ const Reservations = () => {
       setReservationCount(0);
     }
 
-    // Cleanup on unmount
     return () => {
       if (intervalId) clearInterval(intervalId);
     };
   }, [user, isAuthenticated]);
-
-  // --- END MODIFIED SECTION ---
 
   useEffect(() => {
     const activeStatuses = ['Pending', 'Confirmed', 'Paid', 'Check-in', 'Checked-In'];
@@ -266,37 +347,51 @@ const Reservations = () => {
     setReservationCount(activeCount);
   }, [currentReservations]);
 
+  // --- REPLACED WINDOW.CONFIRM WITH CUSTOM MODAL ---
   const handleDeleteHistory = (id) => {
-    if (window.confirm("Are you sure you want to remove this from your history view?")) {
-      setHiddenHistoryIds(prev => {
-        const newHiddenIds = [...prev, id];
-        
-        if (user) {
-            const userId = user.id || user._id || user.userId;
-            const storageKey = `hidden_history_${userId}`;
-            localStorage.setItem(storageKey, JSON.stringify(newHiddenIds));
-        }
-        
-        return newHiddenIds;
-      });
-    }
+    setConfirmDialog({
+      show: true,
+      title: "Remove from History",
+      message: "Are you sure you want to remove this booking from your history view?",
+      onConfirm: () => {
+        setHiddenHistoryIds(prev => {
+          const newHiddenIds = [...prev, id];
+          
+          if (user) {
+              const userId = user.id || user._id || user.userId;
+              const storageKey = `hidden_history_${userId}`;
+              localStorage.setItem(storageKey, JSON.stringify(newHiddenIds));
+          }
+          
+          return newHiddenIds;
+        });
+        showToast("Booking removed from history.", "success");
+        closeConfirm();
+      }
+    });
   };
 
+  // --- REPLACED WINDOW.CONFIRM WITH CUSTOM MODAL ---
   const handleDeleteAllHistory = () => {
-    if (window.confirm("Are you sure you want to clear your entire reservation history? This will hide them from your view.")) {
-        
+    setConfirmDialog({
+      show: true,
+      title: "Clear All History",
+      message: "Are you sure you want to clear your entire reservation history? This will hide them from your view.",
+      onConfirm: () => {
         const historyStatuses = ['Cancelled', 'Declined', 'Completed', 'Checkout', 'Check-out'];
         
         const historyIdsToHide = currentReservations
             .filter(r => historyStatuses.includes(r.status) && !hiddenHistoryIds.includes(r.id))
             .map(r => r.id);
 
-        if (historyIdsToHide.length === 0) return;
+        if (historyIdsToHide.length === 0) {
+            closeConfirm();
+            return;
+        }
 
         setHiddenHistoryIds(prev => {
             const newHiddenIds = [...prev, ...historyIdsToHide];
             
-            // Update Local Storage for persistence
             if (user) {
                 const userId = user.id || user._id || user.userId;
                 const storageKey = `hidden_history_${userId}`;
@@ -305,7 +400,10 @@ const Reservations = () => {
             
             return newHiddenIds;
         });
-    }
+        showToast("All history cleared.", "success");
+        closeConfirm();
+      }
+    });
   };
 
   const visibleReservations = currentReservations.filter(r => !hiddenHistoryIds.includes(r.id));
@@ -478,12 +576,12 @@ const Reservations = () => {
     e.preventDefault();
     
     if (!validateForm()) {
-      alert("Please fix the form errors before submitting.");
+      showToast("Please fix the form errors before submitting.", "error"); // Replaced alert
       return;
     }
 
     if (cart.length === 0) {
-      alert("Please add at least one amenity to your cart");
+      showToast("Please add at least one amenity to your cart", "error"); // Replaced alert
       return;
     }
 
@@ -495,7 +593,7 @@ const Reservations = () => {
     });
 
     if (hasConflict) {
-        alert("Some items in your cart are fully booked or exceed available slots for the selected dates. Please check your cart and update quantities.");
+        showToast("Some items exceed available slots. Check your cart.", "error"); // Replaced alert
         setShowCartModal(true); 
         return;
     }
@@ -523,7 +621,7 @@ const Reservations = () => {
       const result = response.data;
       
       if (result.success) {
-        alert("Reservation submitted successfully!");
+        showToast("Reservation submitted successfully!", "success"); // Replaced alert
         
         setReservationForm({
           fullName: "",
@@ -554,11 +652,11 @@ const Reservations = () => {
         }
         
       } else {
-        alert("Failed to submit reservation: " + (result.message || 'Unknown error'));
+        showToast("Failed to submit reservation: " + (result.message || 'Unknown error'), "error"); // Replaced alert
       }
     } catch (error) {
       console.error('Reservation submission error:', error);
-      alert("Failed to submit reservation. Please try again.");
+      showToast("Failed to submit reservation. Please try again.", "error"); // Replaced alert
     }
   };
 
@@ -566,12 +664,12 @@ const Reservations = () => {
     const exists = cart.find((item) => item.amenity_id === amenity.id);
 
     if (exists) {
-      alert(`${amenity.name} is already in your cart. Please add the quantity in the cart instead.`);
+      showToast(`${amenity.name} is already in your cart.`, "error"); // Replaced alert
       return;
     }
 
     if (cart.length >= 10) {
-      alert("You can only add up to 10 different amenities in the cart.");
+      showToast("You can only add up to 10 amenities.", "error"); // Replaced alert
       return;
     }
 
@@ -593,6 +691,7 @@ const Reservations = () => {
         },
       ];
     });
+    showToast("Item added to cart", "success");
   };
 
   const removeFromCart = (index) => {
@@ -625,7 +724,7 @@ const Reservations = () => {
   const fetchReservations = async () => {
     try {
       if (!user) {
-        alert("Please log in to view your reservations.");
+        showToast("Please log in to view your reservations.", "error"); // Replaced alert
         setReservationCount(0);
         return;
       }
@@ -633,7 +732,7 @@ const Reservations = () => {
       const userId = user.id || user._id || user.userId;
       
       if (!userId) {
-        alert("User ID not found. Please log in again.");
+        showToast("User ID not found. Please log in again.", "error"); // Replaced alert
         setReservationCount(0);
         return;
       }
@@ -693,11 +792,11 @@ const Reservations = () => {
             setShowReservationsModal(true);
           } else {
             setReservationCount(0);
-            alert("You don't have any reservations yet. Make your first reservation!");
+            showToast("You don't have any reservations yet.", "error"); // Replaced alert
           }
         } else {
           setReservationCount(0);
-          alert("Failed to load reservations: " + (result.message || 'Unknown error'));
+          showToast("Failed to load reservations.", "error"); // Replaced alert
         }
         
       } catch (apiError) {
@@ -709,7 +808,7 @@ const Reservations = () => {
     } catch (error) {
       console.error('Fetch reservations error:', error);
       setReservationCount(0);
-      alert("Cannot load reservations. Please try again later.");
+      showToast("Cannot load reservations. Please try again later.", "error"); // Replaced alert
     }
   };
 
@@ -720,7 +819,7 @@ const Reservations = () => {
       const contactNumber = user?.contactNumber || user?.phone || userData.contactNumber;
       
       if (!customerName || !contactNumber) {
-        alert("Unable to find your reservation details. Please make sure your profile is complete.");
+        showToast("Unable to find details. Profile incomplete.", "error"); // Replaced alert
         setReservationCount(0);
         return;
       }
@@ -783,12 +882,12 @@ const Reservations = () => {
         }));
       } else {
         setReservationCount(0);
-        alert("No reservations found. Make your first reservation!");
+        showToast("No reservations found.", "error"); // Replaced alert
       }
     } catch (fallbackError) {
       console.error('Fallback error:', fallbackError);
       setReservationCount(0);
-      alert("Cannot load reservations. Please try again later.");
+      showToast("Cannot load reservations.", "error"); // Replaced alert
     }
   };
 
@@ -810,13 +909,13 @@ const Reservations = () => {
              return r;
           }));
 
-          alert(`Reservation ${reservationToCancel.reservationNumber} has been cancelled.`);
+          showToast(`Reservation ${reservationToCancel.reservationNumber} cancelled.`, "success"); // Replaced alert
         } else {
-          alert("Failed to cancel reservation: " + result.message);
+          showToast("Failed to cancel: " + result.message, "error"); // Replaced alert
         }
       } catch (error) {
         console.error('Cancel reservation error:', error);
-        alert("Failed to cancel reservation. Please try again.");
+        showToast("Failed to cancel reservation.", "error"); // Replaced alert
       }
       setReservationToCancel(null);
     }
@@ -839,6 +938,24 @@ const Reservations = () => {
   return (
     <div className="min-h-screen flex flex-col font-body">
       <Header user={user} onLogout={handleLogout} />
+
+      {/* --- TOAST NOTIFICATION --- */}
+      {toast.show && (
+        <Toast 
+          message={toast.message} 
+          type={toast.type} 
+          onClose={closeToast} 
+        />
+      )}
+
+      {/* --- CONFIRMATION MODAL --- */}
+      <ConfirmModal 
+        isOpen={confirmDialog.show}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
+        onConfirm={confirmDialog.onConfirm}
+        onCancel={closeConfirm}
+      />
 
       <HeroSection
         title="Your Reservations"
