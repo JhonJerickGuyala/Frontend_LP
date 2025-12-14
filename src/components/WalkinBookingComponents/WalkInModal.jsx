@@ -380,7 +380,7 @@ export const DetailModal = ({ isOpen, transaction, onClose, viewType }) => {
                   <div key={idx} className="flex justify-between items-center py-3 border-b border-gray-50 last:border-0 px-2 rounded-lg hover:bg-gray-50">
                     <div>
                         <span className="font-medium text-slate-700 text-sm block">{res.amenity_name}</span>
-
+                        {/* CALCULATION: Price x Qty x Nights */}
                         <span className="text-[10px] text-gray-400 font-medium">
                            {res.quantity} x ₱{parseFloat(res.price).toLocaleString()} x {duration} night{duration > 1 ? 's' : ''}
                         </span>
@@ -393,7 +393,7 @@ export const DetailModal = ({ isOpen, transaction, onClose, viewType }) => {
                   <div className="flex justify-between items-center py-3 px-2 rounded-lg hover:bg-gray-50">
                       <div className="flex items-center gap-2">
                           <span className="bg-blue-50 text-blue-600 text-[10px] px-1.5 py-0.5 rounded font-bold">{guestCount}</span>
-  
+                          {/* CALCULATION: Price x Pax (One time) */}
                           <span className="font-medium text-slate-700 text-sm">Entrance Fee (₱50)</span>
                       </div>
                       <span className="font-bold text-slate-900 text-sm">₱{totalEntrance.toLocaleString()}</span>
@@ -438,6 +438,7 @@ export const DetailModal = ({ isOpen, transaction, onClose, viewType }) => {
                     {extensionTotal > 0 && (<div className="flex justify-between items-center text-sm"><span className="text-purple-600 flex items-center gap-1"><Plus size={12}/> Extensions (Paid)</span><span className="font-medium text-purple-700">₱{extensionTotal.toLocaleString()}</span></div>)}
                     <div className="border-t border-gray-200 my-2"></div>
                     <div className="flex justify-between items-center text-sm"><span className="text-gray-800 font-bold">Grand Total</span><span className="font-bold text-gray-900">₱{totalAmount.toLocaleString()}</span></div>
+                    {/* Visual force: Amount Paid equals Total */}
                     <div className="flex justify-between items-center text-sm"><span className="text-green-600 flex items-center gap-1"><Check size={12}/> Amount Paid</span><span className="font-bold text-green-600">- ₱{totalAmount.toLocaleString()}</span></div>
                 </div>
                 <div className="bg-green-100 border border-green-200 p-4 rounded-xl flex justify-between items-center shadow-sm"><div><p className="text-green-800 font-bold text-sm uppercase tracking-wide">Status</p><p className="text-xs text-green-700 opacity-80">Full payment received</p></div><div className="flex items-center gap-2"><CheckCircle className="text-green-600" size={24} /><span className="text-lg font-extrabold text-green-700">FULLY PAID</span></div></div>
@@ -494,12 +495,14 @@ export const WalkInConfirmationModal = ({ isOpen, onClose, onConfirm, formData, 
   const duration = calculateDuration(formData.checkInDate, formData.checkOutDate);
 
   return (
+    // FIXED: Z-index and Fixed Inset for Full Coverage
     <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4">
-
+      {/* FIXED: Blur covers everything */}
       <div className="absolute inset-0 bg-black/60 backdrop-blur-md" onClick={onClose} />
       
       <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh] animate-slideIn">
-
+        
+        {/* UPDATED: Orange Header */}
         <div className="shrink-0 bg-[#F97316] px-6 py-4 flex justify-between items-center text-white border-b border-orange-600 shadow-sm z-10">
           <h3 className="text-lg font-bold flex items-center gap-2">
             <CheckCircle className="text-white" size={20}/> Confirm Booking
@@ -530,6 +533,7 @@ export const WalkInConfirmationModal = ({ isOpen, onClose, onConfirm, formData, 
           </div>
 
           <div className="flex gap-4">
+             {/* UPDATED: Removed Blue accents, using Orange/Gray theme */}
              <div className="flex-1 bg-orange-50 p-3 rounded-xl border border-orange-100">
                 <p className="text-xs text-orange-600 font-bold uppercase">Check In</p>
                 <p className="font-bold text-gray-900 text-sm mt-1">
