@@ -281,7 +281,7 @@ export const ActionModal = ({ isOpen, type, transaction, onClose, onConfirm, loa
     iconBg = 'bg-red-100 text-red-600';
   } else if (isComplete) {
     title = 'Check Out Guest?';
-    message = `Complete booking for ${transaction.customer_name}? Ensure all keys are returned.`;
+    message = `Complete booking for ${transaction.customer_name}?`;
     colorClass = 'bg-orange-600 hover:bg-orange-700';
     Icon = LogOut;
     iconBg = 'bg-orange-100 text-orange-600';
