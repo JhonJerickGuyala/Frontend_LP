@@ -1,7 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import api from '../../config/axios';
 import { CheckCircle, AlertCircle, X } from 'lucide-react';
-import { WalkInConfirmationModal, WalkInSuccessModal } from '../../components/WalkinBookingComponents/WalkInModal.jsx';
+
+
+import { 
+  WalkInConfirmationModal, 
+  WalkInSuccessModal 
+} from '../../components/WalkinBookingComponents/WalkInModal.jsx';
+
 import WalkInForm from '../../components/WalkinBookingComponents/WalkInForm.jsx';
 import WalkInCart from '../../components/WalkinBookingComponents/WalkInCart.jsx';
 import WalkInAmenities from '../../components/WalkinBookingComponents/WalkInAmenities.jsx';
@@ -51,11 +57,13 @@ const WalkInBooking = () => {
             } else {
                 const startDate = new Date(formData.checkInDate);
                 startDate.setMinutes(startDate.getMinutes() + 1);
+                
                 const year = startDate.getFullYear();
                 const month = String(startDate.getMonth() + 1).padStart(2, '0');
                 const day = String(startDate.getDate()).padStart(2, '0');
                 const hours = String(startDate.getHours()).padStart(2, '0');
                 const minutes = String(startDate.getMinutes()).padStart(2, '0');
+                
                 params.checkOut = `${year}-${month}-${day}T${hours}:${minutes}`;
             }
         }
@@ -141,7 +149,7 @@ const WalkInBooking = () => {
   return (
     <div className="space-y-6 max-w-9xl mx-auto pb-12 relative">
         {toast && <ToastNotification message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
-        
+
         <WalkInConfirmationModal 
             isOpen={showConfirmModal}
             onClose={() => setShowConfirmModal(false)}

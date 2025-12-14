@@ -1,11 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { 
   X, CheckCircle, AlertCircle, RefreshCw, User, 
   FileText, ZoomIn, ZoomOut, Clock, Layers, RotateCcw, Maximize,
-  Plus, CreditCard, LogIn, Ban, LogOut, Eye, HelpCircle, ChevronRight, Calendar, Minus, Check
+  Plus, CreditCard, LogIn, Ban, LogOut, Eye, HelpCircle, ChevronRight, Users, Calendar, Minus, Check
 } from 'lucide-react';
 
-const backendUrl = import.meta.env.VITE_API_URL;
+const backendUrl = import.meta.env.VITE_API_URL || 'http://localhost:7777';
 
 const getImageUrl = (imagePath) => {
   if (!imagePath) return 'https://via.placeholder.com/400x300?text=No+Image';
@@ -13,38 +13,10 @@ const getImageUrl = (imagePath) => {
   return `${backendUrl}/uploads/${imagePath}`;
 };
 
-// Helper to calculate days
-const calculateDuration = (startDate, endDate) => {
-    if (!startDate || !endDate) return 1;
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-    
-    if (isNaN(start) || isNaN(end)) return 1;
-
-    const diffTime = Math.abs(end - start);
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
-
-    return diffDays > 0 ? diffDays : 1;
-};
-
-// --- FIX: SCROLL LOCK HOOK ---
-// Para hindi gumalaw ang background body pag open ang modal
-const useBodyScrollLock = (isOpen) => {
-    useEffect(() => {
-        if (isOpen) {
-            document.body.style.overflow = 'hidden';
-        } else {
-            document.body.style.overflow = 'unset';
-        }
-        return () => { document.body.style.overflow = 'unset'; };
-    }, [isOpen]);
-};
-
 // ==========================================
-// 1. WALK-IN DETAILS MODAL (View Details)
+// 1. MOBILE WALKIN MODAL (Main View) - z-[1000]
 // ==========================================
-export const WalkInModal = ({ transaction, isOpen, onClose, onViewProof, onViewDetails, onStatusUpdate, onExtendBooking, loading }) => {
-  useBodyScrollLock(isOpen);
+export const MobileWalkinModal = ({ transaction, isOpen, onClose, onViewProof, onViewDetails, onStatusUpdate, onExtendBooking, loading }) => {
   if (!isOpen || !transaction) return null;
 
   const formatDateTime = (dateStr) => {
@@ -77,35 +49,30 @@ export const WalkInModal = ({ transaction, isOpen, onClose, onViewProof, onViewD
   const sched = transaction.reservations?.[0];
   const inDT = formatDateTime(sched?.check_in_date);
   const outDT = formatDateTime(sched?.check_out_date);
-  const duration = calculateDuration(sched?.check_in_date, sched?.check_out_date);
   const extInfo = getExtensionSummary(transaction);
   const isExtended = extInfo.cost > 0;
-  const paymentLabel = 'Fully Paid'; 
+  
+  const paymentLabel = 'Fully Paid';
   const amenities = getAmenitySummary(transaction);
 
   return (
-    // FIX: Wrapper with z-index and flex center
-    <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4">
-      {/* FIX: Backdrop covers entire viewport */}
-      <div className="fixed inset-0 bg-black/60 backdrop-blur-md" onClick={onClose} />
-      
-      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col animate-slideIn max-h-[90vh]">
-        
-        {/* Header */}
-        <div className="shrink-0 bg-[#F97316] px-6 py-4 border-b border-orange-600 flex items-center justify-between text-white shadow-md z-10">
+    <div className="fixed inset-0 z-[1000] overflow-y-auto">
+      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative min-h-screen flex items-start justify-center p-4 pt-20">
+        <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden flex flex-col animate-slideIn">
+          
+          {/* Header */}
+          <div className="sticky top-0 bg-gradient-to-r from-orange-600 to-amber-600 px-6 py-4 border-b border-white/10 rounded-t-2xl flex items-center justify-between text-white z-10">
             <div>
-              <h3 className="text-lg font-bold flex items-center gap-2">
-                <FileText size={20} className="text-white"/> Walk-In Details
-              </h3>
-              <p className="text-xs text-orange-100 font-mono mt-0.5 opacity-90">{transaction.transaction_ref}</p>
+              <h3 className="text-lg font-bold flex items-center gap-2"><FileText size={20}/> Walk-In Details</h3>
+              <p className="text-xs text-orange-100 font-mono mt-0.5">{transaction.transaction_ref}</p>
             </div>
             <button onClick={onClose} disabled={loading} className="p-2 bg-white/20 hover:bg-white/30 rounded-full transition-colors text-white disabled:opacity-50">
               <X size={20} />
             </button>
-        </div>
+          </div>
 
-        {/* Scrollable Body */}
-        <div className="flex-1 overflow-y-auto px-6 py-6 space-y-5 bg-gray-50/50 custom-scrollbar">
+          <div className="px-6 py-6 space-y-5 bg-gray-50/50">
             {/* Customer Info */}
             <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
               <div className="flex items-start gap-3">
@@ -123,20 +90,15 @@ export const WalkInModal = ({ transaction, isOpen, onClose, onViewProof, onViewD
 
             {/* Schedule */}
             <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
-              <div className="flex items-center justify-between mb-3 pb-2 border-b border-gray-100">
-                <div className="flex items-center gap-2">
-                    <Calendar size={16} className="text-gray-500" />
-                    <h4 className="font-bold text-gray-700 text-sm uppercase tracking-wide">Schedule</h4>
-                </div>
-                <div className="bg-orange-50 border border-orange-100 text-orange-600 px-2 py-1 rounded text-xs font-bold flex items-center gap-1">
-                    <Clock size={12}/> {duration} Night{duration > 1 ? 's' : ''}
-                </div>
+              <div className="flex items-center gap-2 mb-3 pb-2 border-b border-gray-100">
+                <Calendar size={16} className="text-gray-500" />
+                <h4 className="font-bold text-gray-700 text-sm uppercase tracking-wide">Schedule</h4>
               </div>
               <div className="space-y-3">
                 <div className="flex justify-between items-center">
                   <div>
                     <p className="text-xs text-gray-500 mb-1">Check In</p>
-                    <p className="font-bold text-gray-800 text-sm bg-gray-100 px-2 py-1 rounded border border-gray-200 inline-block">{inDT.date} • {inDT.time}</p>
+                    <p className="font-bold text-green-600 text-sm bg-green-50 px-2 py-1 rounded border border-green-100 inline-block">{inDT.date} • {inDT.time}</p>
                   </div>
                   <ChevronRight size={20} className="text-gray-300" />
                   <div className="text-right">
@@ -209,7 +171,7 @@ export const WalkInModal = ({ transaction, isOpen, onClose, onViewProof, onViewD
               </div>
             </div>
 
-            {/* Booking Status Badge */}
+            {/* Status Badge */}
             <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm flex justify-between items-center">
                 <div>
                   <p className="text-[10px] text-gray-400 uppercase tracking-wider font-bold mb-1">Booking Status</p>
@@ -230,10 +192,10 @@ export const WalkInModal = ({ transaction, isOpen, onClose, onViewProof, onViewD
                   </button>
                 )}
             </div>
-        </div>
+          </div>
 
-        {/* Footer Actions */}
-        <div className="shrink-0 bg-white border-t border-gray-200 px-6 py-4 rounded-b-2xl shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
+          {/* ACTION BUTTONS */}
+          <div className="sticky bottom-0 bg-white border-t border-gray-200 px-6 py-4 pb-6 rounded-b-2xl shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
             <div className="flex flex-wrap gap-3">
               {transaction.booking_status === 'Confirmed' ? (
                 <>
@@ -259,6 +221,7 @@ export const WalkInModal = ({ transaction, isOpen, onClose, onViewProof, onViewD
                 </button>
               )}
             </div>
+          </div>
         </div>
       </div>
     </div>
@@ -266,38 +229,64 @@ export const WalkInModal = ({ transaction, isOpen, onClose, onViewProof, onViewD
 };
 
 // ==========================================
-// 2. ACTION MODAL
+// 2. ACTION MODAL - z-[2100] (UPDATED)
 // ==========================================
 export const ActionModal = ({ isOpen, type, transaction, onClose, onConfirm, loading }) => {
-  useBodyScrollLock(isOpen);
   if (!isOpen || !transaction) return null;
+
   const isConfirm = type === 'Confirmed';
   const isCancel = type === 'Cancelled';
   const isComplete = type === 'Completed';
-  let title = 'Confirmation', message = 'Are you sure?', colorClass = 'bg-blue-600', Icon = HelpCircle, iconBg = 'bg-blue-100 text-blue-600';
-  
-  if (isConfirm) { title = 'Confirm Booking?'; message = `Confirm walk-in reservation for ${transaction.customer_name}.`; colorClass = 'bg-green-600'; Icon = CheckCircle; iconBg = 'bg-green-100 text-green-600'; } 
-  else if (isCancel) { title = 'Cancel Booking?'; message = `Cancel booking for ${transaction.customer_name}? This cannot be undone.`; colorClass = 'bg-red-600'; Icon = Ban; iconBg = 'bg-red-100 text-red-600'; } 
-  else if (isComplete) { title = 'Check Out Guest?'; message = `Complete booking for ${transaction.customer_name}? Ensure all keys are returned.`; colorClass = 'bg-orange-600'; Icon = LogOut; iconBg = 'bg-orange-100 text-orange-600'; }
+
+  let title = 'Confirmation';
+  let message = 'Are you sure you want to proceed?';
+  let colorClass = 'bg-blue-600 hover:bg-blue-700';
+  let Icon = HelpCircle;
+  let iconBg = 'bg-blue-100 text-blue-600';
+
+  if (isConfirm) {
+    title = 'Confirm Booking?';
+    message = `Confirm walk-in reservation for ${transaction.customer_name}.`;
+    colorClass = 'bg-green-600 hover:bg-green-700';
+    Icon = CheckCircle;
+    iconBg = 'bg-green-100 text-green-600';
+  } else if (isCancel) {
+    title = 'Cancel Booking?';
+    message = `Are you sure you want to cancel for ${transaction.customer_name}? This cannot be undone.`;
+    colorClass = 'bg-red-600 hover:bg-red-700';
+    Icon = Ban;
+    iconBg = 'bg-red-100 text-red-600';
+  } else if (isComplete) {
+    title = 'Check Out Guest?';
+    message = `Complete booking for ${transaction.customer_name}? Ensure all keys are returned.`;
+    colorClass = 'bg-orange-600 hover:bg-orange-700';
+    Icon = LogOut;
+    iconBg = 'bg-orange-100 text-orange-600';
+  }
 
   return (
-    <div className="fixed inset-0 z-[1300] flex items-center justify-center p-4">
-      <div className="fixed inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose}/>
-      <div className="relative bg-white p-8 rounded-2xl shadow-2xl max-w-sm w-full transform transition-all scale-100 border border-gray-100">
-        <div className={`mx-auto mb-4 w-16 h-16 rounded-full flex items-center justify-center ${iconBg}`}><Icon size={32}/></div>
+    <div className="fixed inset-0 z-[2100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-fadeIn">
+      <div className="bg-white p-8 rounded-2xl shadow-2xl max-w-sm w-full transform transition-all scale-100 border border-gray-100">
+        <div className={`mx-auto mb-4 w-16 h-16 rounded-full flex items-center justify-center ${iconBg}`}>
+            <Icon size={32}/>
+        </div>
         <h3 className="text-xl font-bold text-gray-900 text-center mb-2">{title}</h3>
         <p className="text-gray-500 text-center text-sm mb-6">{message}</p>
-        <div className="flex gap-3"><button onClick={onClose} disabled={loading} className="flex-1 py-3 border border-gray-300 text-gray-700 rounded-xl font-semibold hover:bg-gray-50 disabled:opacity-50">Cancel</button><button onClick={onConfirm} disabled={loading} className={`flex-1 py-3 text-white rounded-xl font-semibold shadow-lg ${colorClass} disabled:opacity-50`}>{loading ? 'Processing...' : 'Confirm'}</button></div>
+        <div className="flex gap-3">
+          <button onClick={onClose} disabled={loading} className="flex-1 py-3 border border-gray-300 text-gray-700 rounded-xl font-semibold hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">Cancel</button>
+          <button onClick={onConfirm} disabled={loading} className={`flex-1 py-3 text-white rounded-xl font-semibold shadow-lg ${colorClass} disabled:opacity-50 disabled:cursor-not-allowed`}>
+            {loading ? 'Processing...' : 'Confirm'}
+          </button>
+        </div>
       </div>
     </div>
   );
 };
 
 // ==========================================
-// 3. PROOF MODAL
+// 3. PROOF MODAL - z-[2100] (UPDATED)
 // ==========================================
 export const ProofModal = ({ isOpen, transaction, onClose, imageErrors, onRetryLoad, onError }) => {
-  useBodyScrollLock(isOpen);
   const [scale, setScale] = useState(1);
   const [rotation, setRotation] = useState(0);
   const [position, setPosition] = useState({ x: 0, y: 0 });
@@ -305,157 +294,262 @@ export const ProofModal = ({ isOpen, transaction, onClose, imageErrors, onRetryL
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
 
   if (!isOpen || !transaction) return null;
+
   const handleZoomIn = () => setScale(s => Math.min(s + 0.5, 4));
   const handleZoomOut = () => setScale(s => Math.max(s - 0.5, 0.5));
   const handleRotate = () => setRotation(r => r + 90);
   const handleReset = () => { setScale(1); setRotation(0); setPosition({ x: 0, y: 0 }); };
+
   const handleMouseDown = (e) => { if (scale > 1) { setIsDragging(true); setDragStart({ x: e.clientX - position.x, y: e.clientY - position.y }); } };
   const handleMouseMove = (e) => { if (isDragging && scale > 1) { setPosition({ x: e.clientX - dragStart.x, y: e.clientY - dragStart.y }); } };
   const handleMouseUp = () => setIsDragging(false);
 
   return (
-    <div className="fixed inset-0 z-[1400] flex flex-col animate-fadeIn">
-      {/* Background */}
-      <div className="fixed inset-0 bg-black/95 backdrop-blur-sm" onClick={onClose}/>
-      
-      {/* Content */}
+    <div className="fixed inset-0 z-[2100] bg-black/95 flex flex-col animate-fadeIn backdrop-blur-sm">
       <div className="flex justify-between items-center p-4 bg-black/40 absolute top-0 w-full z-50">
-        <div className="text-white"><h3 className="font-bold text-lg flex items-center gap-2"><FileText size={20} className="text-orange-400"/> Proof of Payment</h3><p className="text-xs text-gray-400 font-mono">{transaction.transaction_ref}</p></div>
-        <button onClick={onClose} className="p-2 bg-white/10 hover:bg-white/20 rounded-full text-white"><X size={24} /></button>
+        <div className="text-white">
+            <h3 className="font-bold text-lg flex items-center gap-2"><FileText size={20} className="text-orange-400"/> Proof of Payment</h3>
+            <p className="text-xs text-gray-400 font-mono">{transaction.transaction_ref}</p>
+        </div>
+        <button onClick={onClose} className="p-2 bg-white/10 hover:bg-white/20 rounded-full text-white transition-colors"><X size={24} /></button>
       </div>
-      <div className="flex-1 flex items-center justify-center overflow-hidden cursor-grab active:cursor-grabbing p-4 relative z-10" onMouseDown={handleMouseDown} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp} onWheel={(e) => { if(e.deltaY < 0) handleZoomIn(); else handleZoomOut(); }}>
-        {imageErrors && imageErrors[transaction.id] ? (<div className="text-center"><AlertCircle className="mx-auto text-red-500 mb-2" size={48} /><p className="text-gray-300 mb-4">Image failed to load</p><button onClick={() => onRetryLoad(transaction.id)} className="px-4 py-2 bg-white/10 text-white rounded hover:bg-white/20 flex items-center gap-2 mx-auto"><RefreshCw size={16}/> Retry</button></div>) : (<img src={getImageUrl(transaction.proof_of_payment)} alt="Proof" className="transition-transform duration-200 ease-out max-h-[80vh] max-w-full object-contain shadow-2xl" style={{ transform: `translate(${position.x}px, ${position.y}px) scale(${scale}) rotate(${rotation}deg)` }} onError={() => onError(transaction.id)} draggable={false}/>)}
+
+      <div className="flex-1 flex items-center justify-center overflow-hidden cursor-grab active:cursor-grabbing p-4"
+        onMouseDown={handleMouseDown} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp}
+        onWheel={(e) => { if(e.deltaY < 0) handleZoomIn(); else handleZoomOut(); }}>
+        {imageErrors && imageErrors[transaction.id] ? (
+          <div className="text-center">
+            <AlertCircle className="mx-auto text-red-500 mb-2" size={48} />
+            <p className="text-gray-300 mb-4">Image failed to load</p>
+            <button onClick={() => onRetryLoad(transaction.id)} className="px-4 py-2 bg-white/10 text-white rounded hover:bg-white/20 flex items-center gap-2 mx-auto"><RefreshCw size={16}/> Retry</button>
+          </div>
+        ) : (
+          <img src={getImageUrl(transaction.proof_of_payment)} alt="Proof" 
+            className="transition-transform duration-200 ease-out max-h-[80vh] max-w-full object-contain shadow-2xl"
+            style={{ transform: `translate(${position.x}px, ${position.y}px) scale(${scale}) rotate(${rotation}deg)` }}
+            onError={() => onError(transaction.id)} draggable={false}
+          />
+        )}
       </div>
-      <div className="bg-black/80 backdrop-blur-md p-4 absolute bottom-0 w-full flex flex-col md:flex-row items-center justify-between gap-4 border-t border-white/10 z-50">
-        <div className="flex items-center gap-2 bg-white/10 px-4 py-2 rounded-full"><button onClick={handleZoomOut} className="text-white hover:text-orange-400 p-1"><ZoomOut size={20}/></button><span className="text-xs text-gray-300 w-12 text-center">{Math.round(scale * 100)}%</span><button onClick={handleZoomIn} className="text-white hover:text-orange-400 p-1"><ZoomIn size={20}/></button><div className="w-px h-4 bg-gray-600 mx-2"></div><button onClick={handleRotate} className="text-white hover:text-green-400 p-1"><RotateCcw size={18}/></button><button onClick={handleReset} className="text-white hover:text-red-400 p-1"><Maximize size={18}/></button></div>
+
+      <div className="bg-black/80 backdrop-blur-md p-4 absolute bottom-0 w-full flex flex-col md:flex-row items-center justify-between gap-4 border-t border-white/10">
+        <div className="flex items-center gap-2 bg-white/10 px-4 py-2 rounded-full">
+            <button onClick={handleZoomOut} className="text-white hover:text-orange-400 p-1"><ZoomOut size={20}/></button>
+            <span className="text-xs text-gray-300 w-12 text-center">{Math.round(scale * 100)}%</span>
+            <button onClick={handleZoomIn} className="text-white hover:text-orange-400 p-1"><ZoomIn size={20}/></button>
+            <div className="w-px h-4 bg-gray-600 mx-2"></div>
+            <button onClick={handleRotate} className="text-white hover:text-green-400 p-1" title="Rotate"><RotateCcw size={18}/></button>
+            <button onClick={handleReset} className="text-white hover:text-red-400 p-1" title="Reset View"><Maximize size={18}/></button>
+        </div>
       </div>
     </div>
   );
 };
 
 // ==========================================
-// 4. CHECK-IN MODAL
+// 4. CHECK-IN MODAL - z-[2100] (UPDATED)
 // ==========================================
 export const CheckInModal = ({ isOpen, transaction, onClose, onConfirm, loading }) => {
-  useBodyScrollLock(isOpen);
   if (!isOpen || !transaction) return null;
+  
   return (
-    <div className="fixed inset-0 z-[1300] flex items-center justify-center p-4">
-      <div className="fixed inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose}/>
-      <div className="relative bg-white p-8 rounded-2xl shadow-2xl max-w-md w-full border border-gray-100">
+    <div className="fixed inset-0 z-[2100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-fadeIn">
+      <div className="bg-white p-8 rounded-2xl shadow-2xl max-w-md w-full border border-gray-100">
         <h3 className="text-2xl font-bold text-gray-900 mb-6">Check-In Confirmation</h3>
+        
         <div className="bg-orange-50 border border-orange-100 p-5 rounded-xl mb-6">
-          <div className="flex items-center gap-3 mb-3"><div className="p-2 bg-orange-100 rounded-full text-orange-600"><User size={20} /></div><span className="font-bold text-gray-900 text-lg">{transaction.customer_name}</span></div>
-          <div className="bg-green-50 border border-green-200 p-4 rounded-lg mt-3 flex items-center gap-2"><CheckCircle size={18} className="text-green-600"/><div><p className="text-green-800 font-bold text-sm">Walk-In (Paid)</p><p className="text-xs text-green-700">Payment collected at counter.</p></div></div>
+          <div className="flex items-center gap-3 mb-3">
+            <div className="p-2 bg-orange-100 rounded-full text-orange-600"><User size={20} /></div>
+            <span className="font-bold text-gray-900 text-lg">{transaction.customer_name}</span>
+          </div>
+          
+          <div className="bg-green-50 border border-green-200 p-4 rounded-lg mt-3 flex items-center gap-2">
+            <CheckCircle size={18} className="text-green-600"/>
+            <div>
+               <p className="text-green-800 font-bold text-sm">Walk-In (Paid)</p>
+               <p className="text-xs text-green-700">Payment collected at counter.</p>
+            </div>
+          </div>
         </div>
-        <div className="flex gap-3"><button onClick={onClose} disabled={loading} className="flex-1 py-3 border border-gray-300 text-gray-700 rounded-xl font-bold hover:bg-gray-50 transition-colors disabled:opacity-50">Cancel</button><button onClick={onConfirm} disabled={loading} className="flex-1 py-3 bg-orange-600 text-white rounded-xl font-bold hover:bg-orange-700 shadow-lg shadow-orange-200 transition-colors disabled:opacity-70">{loading ? 'Processing...' : 'Confirm Check-In'}</button></div>
+
+        <div className="flex gap-3">
+          <button onClick={onClose} disabled={loading} className="flex-1 py-3 border border-gray-300 text-gray-700 rounded-xl font-bold hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">Cancel</button>
+          <button onClick={onConfirm} disabled={loading} className="flex-1 py-3 bg-orange-600 text-white rounded-xl font-bold hover:bg-orange-700 shadow-lg shadow-orange-200 transition-colors disabled:opacity-70 disabled:cursor-not-allowed">
+            {loading ? 'Processing...' : 'Confirm Check-In'}
+          </button>
+        </div>
       </div>
     </div>
   );
 };
 
 // ==========================================
-// 5. DETAIL MODAL
+// 5. DETAIL MODAL - z-[2100] (UPDATED - ITO YUNG HINAHANAP MO)
 // ==========================================
 export const DetailModal = ({ isOpen, transaction, onClose, viewType }) => {
-  useBodyScrollLock(isOpen);
   if (!isOpen || !transaction) return null;
-  
-  const sched = transaction.reservations?.[0];
-  const duration = calculateDuration(sched?.check_in_date, sched?.check_out_date);
+
   const reservations = transaction.reservations || [];
   const extensions = transaction.extensions || [];
+  
   const extensionTotal = extensions.reduce((sum, ext) => sum + parseFloat(ext.additional_cost || 0), 0);
   const totalAmount = parseFloat(transaction.total_amount || 0); 
+  
   const baseTotal = totalAmount - extensionTotal; 
+
   const guestCount = parseInt(transaction.num_guest) || 0;
-  const totalEntrance = guestCount * 50; 
+  const entranceFee = guestCount * 50;
 
   const isAmenityView = viewType === 'amenities';
   const isExtensionView = viewType === 'extensions';
   const isPaymentView = viewType === 'payment';
-  let title = 'Details', TitleIcon = FileText, iconColor = 'text-gray-500';
-  if (isAmenityView) { title = 'Amenity Details'; TitleIcon = Layers; iconColor = 'text-orange-500'; } 
-  else if (isExtensionView) { title = 'Extension History'; TitleIcon = Clock; iconColor = 'text-purple-500'; } 
-  else if (isPaymentView) { title = 'Payment Breakdown'; TitleIcon = CreditCard; iconColor = 'text-green-600'; }
+
+  let title = 'Details';
+  let TitleIcon = FileText;
+  let iconColor = 'text-gray-500';
+
+  if (isAmenityView) {
+    title = 'Amenity Details';
+    TitleIcon = Layers;
+    iconColor = 'text-orange-500';
+  } else if (isExtensionView) {
+    title = 'Extension History';
+    TitleIcon = Clock;
+    iconColor = 'text-purple-500';
+  } else if (isPaymentView) {
+    title = 'Payment Breakdown';
+    TitleIcon = CreditCard;
+    iconColor = 'text-green-600';
+  }
 
   return (
-    <div className="fixed inset-0 z-[1300] flex items-center justify-center p-4">
-      <div className="fixed inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col max-h-[85vh]">
-        <div className="px-6 py-5 border-b border-gray-100 flex justify-between items-center bg-white"><h3 className="font-bold text-xl text-slate-800 flex items-center gap-2"><TitleIcon className={iconColor} size={24}/>{title}</h3><button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors"><X size={24}/></button></div>
+    <div className="fixed inset-0 z-[2100] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-fadeIn">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col max-h-[85vh]">
+        
+        {/* Header */}
+        <div className="px-6 py-5 border-b border-gray-100 flex justify-between items-center bg-white">
+          <h3 className="font-bold text-xl text-slate-800 flex items-center gap-2">
+            <TitleIcon className={iconColor} size={24}/>
+            {title}
+          </h3>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors"><X size={24}/></button>
+        </div>
+
+        {/* Body */}
         <div className="p-6 overflow-y-auto custom-scrollbar bg-white">
-          <div className="mb-6 border-b border-gray-50 pb-4"><h2 className="text-2xl font-bold text-slate-900">{transaction.customer_name}</h2><div className="flex justify-between items-center mt-1"><p className="text-xs text-gray-400 uppercase tracking-wider font-semibold">REF: {transaction.transaction_ref}</p><span className="px-2 py-0.5 rounded text-[10px] font-bold border bg-green-50 text-green-700 border-green-200">Fully Paid</span></div></div>
           
+          <div className="mb-6 border-b border-gray-50 pb-4">
+            <h2 className="text-2xl font-bold text-slate-900">{transaction.customer_name}</h2>
+            <div className="flex justify-between items-center mt-1">
+               <p className="text-xs text-gray-400 uppercase tracking-wider font-semibold">REF: {transaction.transaction_ref}</p>
+               <span className="px-2 py-0.5 rounded text-[10px] font-bold border bg-green-50 text-green-700 border-green-200">
+                  Fully Paid
+               </span>
+            </div>
+          </div>
+
           {isAmenityView && (
             <div className="space-y-1">
-              <div className="bg-blue-50 p-2 rounded mb-3 text-center border border-blue-100">
-                <span className="text-xs font-bold text-blue-600 uppercase">Stay Duration: {duration} Night{duration > 1 ? 's' : ''}</span>
-              </div>
-              
               {reservations.map((res, idx) => (
-                  <div key={idx} className="flex justify-between items-center py-3 border-b border-gray-50 last:border-0 px-2 rounded-lg hover:bg-gray-50">
-                    <div>
-                        <span className="font-medium text-slate-700 text-sm block">{res.amenity_name}</span>
-                        <span className="text-[10px] text-gray-400 font-medium">
-                           {res.quantity} x ₱{parseFloat(res.price).toLocaleString()} x {duration} night{duration > 1 ? 's' : ''}
-                        </span>
-                    </div>
-                    <span className="font-bold text-slate-900 text-sm">₱{(parseFloat(res.price) * parseInt(res.quantity) * duration).toLocaleString()}</span>
-                  </div>
+                <div key={idx} className="flex justify-between items-center py-3 border-b border-gray-50 last:border-0 px-2 rounded-lg hover:bg-gray-50">
+                  <span className="font-medium text-slate-700 text-sm">{res.quantity}x {res.amenity_name}</span>
+                  <span className="font-bold text-slate-900 text-sm">₱{(parseFloat(res.price) * parseInt(res.quantity)).toLocaleString()}</span>
+                </div>
               ))}
-
               {guestCount > 0 && (
-                  <div className="flex justify-between items-center py-3 px-2 rounded-lg hover:bg-gray-50">
-                      <div className="flex items-center gap-2">
-                          <span className="bg-blue-50 text-blue-600 text-[10px] px-1.5 py-0.5 rounded font-bold">{guestCount}</span>
-                          <span className="font-medium text-slate-700 text-sm">Entrance Fee (₱50)</span>
-                      </div>
-                      <span className="font-bold text-slate-900 text-sm">₱{totalEntrance.toLocaleString()}</span>
+                <div className="flex justify-between items-center py-3 px-2 rounded-lg hover:bg-gray-50">
+                  <div className="flex items-center gap-2">
+                     <span className="bg-blue-50 text-blue-600 text-[10px] px-1.5 py-0.5 rounded font-bold">{guestCount}</span>
+                     <span className="font-medium text-slate-700 text-sm">Entrance Fee (₱50)</span>
                   </div>
+                  <span className="font-bold text-slate-900 text-sm">₱{entranceFee.toLocaleString()}</span>
+                </div>
               )}
-              <div className="mt-4 flex justify-between items-end border-t border-gray-100 pt-4"><span className="text-slate-500 font-medium text-sm">Subtotal (Base)</span><span className="text-lg font-bold text-slate-700">₱{baseTotal.toLocaleString()}</span></div>
+              <div className="mt-4 flex justify-between items-end border-t border-gray-100 pt-4">
+                  <span className="text-slate-500 font-medium text-sm">Subtotal (Base)</span>
+                  <span className="text-lg font-bold text-slate-700">₱{baseTotal.toLocaleString()}</span>
+              </div>
             </div>
           )}
 
           {isExtensionView && (
             <div className="space-y-4">
                {extensions.length === 0 ? (
-                 <div className="text-center py-8 text-gray-400 italic bg-gray-50 rounded-xl">No extensions recorded.</div>
+                  <div className="text-center py-8 text-gray-400 italic bg-gray-50 rounded-xl">No extensions recorded.</div>
                ) : (
-                 <div className="space-y-2">
-                   {extensions.map((ext, idx) => (
-                     <div key={idx} className="flex justify-between items-center py-3 border-b border-gray-50 px-2">
-                       <div>
-                         <span className="block font-bold text-slate-700 text-sm">{ext.description || `Extension #${idx+1}`}</span>
-                         <span className="text-[10px] text-gray-400 uppercase">
-                            {ext.created_at && !isNaN(new Date(ext.created_at).getTime()) 
-                                ? new Date(ext.created_at).toLocaleString('en-PH', { month: 'short', day: 'numeric', hour: 'numeric', minute:'2-digit' }) 
-                                : '-'}
-                         </span>
-                       </div>
-                       <span className="font-bold text-purple-600 bg-purple-50 px-2 py-1 rounded text-sm">+₱{parseFloat(ext.additional_cost).toLocaleString()}</span>
-                     </div>
-                   ))}
-                   <div className="mt-6 flex justify-between items-end border-t border-gray-100 pt-4"><span className="text-slate-900 font-bold">Total Extension Fees</span><span className="text-2xl font-bold text-purple-600">₱{extensionTotal.toLocaleString()}</span></div>
-                 </div>
+                  <div className="space-y-2">
+                      {extensions.map((ext, idx) => (
+                        <div key={idx} className="flex justify-between items-center py-3 border-b border-gray-50 px-2">
+                            <div>
+                                <span className="block font-bold text-slate-700 text-sm">{ext.description || `Extension #${idx+1}`}</span>
+                                <span className="text-[10px] text-gray-400 uppercase">{new Date(ext.created_at).toLocaleString()}</span>
+                            </div>
+                            <span className="font-bold text-purple-600 bg-purple-50 px-2 py-1 rounded text-sm">+₱{parseFloat(ext.additional_cost).toLocaleString()}</span>
+                        </div>
+                      ))}
+                      <div className="mt-6 flex justify-between items-end border-t border-gray-100 pt-4">
+                          <span className="text-slate-900 font-bold">Total Extension Fees</span>
+                          <span className="text-2xl font-bold text-purple-600">₱{extensionTotal.toLocaleString()}</span>
+                      </div>
+                  </div>
                )}
             </div>
           )}
-          
+
           {isPaymentView && (
              <div className="space-y-6">
-                <div className="grid grid-cols-2 gap-3"><div className="p-3 bg-blue-50 rounded-xl border border-blue-100"><p className="text-xs text-blue-600 font-bold uppercase mb-1">Total Contract</p><p className="text-lg font-extrabold text-blue-900">₱{totalAmount.toLocaleString()}</p></div><div className="p-3 bg-green-50 rounded-xl border border-green-100"><p className="text-xs text-green-600 font-bold uppercase mb-1">Total Paid</p><p className="text-lg font-extrabold text-green-900">₱{totalAmount.toLocaleString()}</p></div></div>
-                <div className="bg-gray-50 rounded-xl p-4 border border-gray-100 space-y-3">
-                    <div className="flex justify-between items-center text-sm"><span className="text-gray-500">Booking Base Price ({duration} nights)</span><span className="font-medium text-gray-900">₱{baseTotal.toLocaleString()}</span></div>
-                    {extensionTotal > 0 && (<div className="flex justify-between items-center text-sm"><span className="text-purple-600 flex items-center gap-1"><Plus size={12}/> Extensions (Paid)</span><span className="font-medium text-purple-700">₱{extensionTotal.toLocaleString()}</span></div>)}
-                    <div className="border-t border-gray-200 my-2"></div>
-                    <div className="flex justify-between items-center text-sm"><span className="text-gray-800 font-bold">Grand Total</span><span className="font-bold text-gray-900">₱{totalAmount.toLocaleString()}</span></div>
-                    <div className="flex justify-between items-center text-sm"><span className="text-green-600 flex items-center gap-1"><Check size={12}/> Amount Paid</span><span className="font-bold text-green-600">- ₱{totalAmount.toLocaleString()}</span></div>
+                
+                <div className="grid grid-cols-2 gap-3">
+                   <div className="p-3 bg-blue-50 rounded-xl border border-blue-100">
+                      <p className="text-xs text-blue-600 font-bold uppercase mb-1">Total Contract</p>
+                      <p className="text-lg font-extrabold text-blue-900">₱{totalAmount.toLocaleString()}</p>
+                   </div>
+                   <div className="p-3 bg-green-50 rounded-xl border border-green-100">
+                      <p className="text-xs text-green-600 font-bold uppercase mb-1">Total Paid</p>
+                      <p className="text-lg font-extrabold text-green-900">₱{totalAmount.toLocaleString()}</p>
+                   </div>
                 </div>
-                <div className="bg-green-100 border border-green-200 p-4 rounded-xl flex justify-between items-center shadow-sm"><div><p className="text-green-800 font-bold text-sm uppercase tracking-wide">Status</p><p className="text-xs text-green-700 opacity-80">Full payment received</p></div><div className="flex items-center gap-2"><CheckCircle className="text-green-600" size={24} /><span className="text-lg font-extrabold text-green-700">FULLY PAID</span></div></div>
+
+                <div className="bg-gray-50 rounded-xl p-4 border border-gray-100 space-y-3">
+                    <div className="flex justify-between items-center text-sm">
+                        <span className="text-gray-500">Booking Base Price</span>
+                        <span className="font-medium text-gray-900">₱{baseTotal.toLocaleString()}</span>
+                    </div>
+                    
+                    {extensionTotal > 0 && (
+                       <div className="flex justify-between items-center text-sm">
+                          <span className="text-purple-600 flex items-center gap-1"><Plus size={12}/> Extensions (Paid)</span>
+                          <span className="font-medium text-purple-700">₱{extensionTotal.toLocaleString()}</span>
+                       </div>
+                    )}
+
+                    <div className="border-t border-gray-200 my-2"></div>
+
+                    <div className="flex justify-between items-center text-sm">
+                        <span className="text-gray-800 font-bold">Grand Total</span>
+                        <span className="font-bold text-gray-900">₱{totalAmount.toLocaleString()}</span>
+                    </div>
+
+                    <div className="flex justify-between items-center text-sm">
+                        <span className="text-green-600 flex items-center gap-1"><Check size={12}/> Amount Paid</span>
+                        <span className="font-bold text-green-600">- ₱{totalAmount.toLocaleString()}</span>
+                    </div>
+                </div>
+
+                <div className="bg-green-100 border border-green-200 p-4 rounded-xl flex justify-between items-center shadow-sm">
+                    <div>
+                        <p className="text-green-800 font-bold text-sm uppercase tracking-wide">Status</p>
+                        <p className="text-xs text-green-700 opacity-80">Full payment received</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                       <CheckCircle className="text-green-600" size={24} />
+                       <span className="text-lg font-extrabold text-green-700">FULLY PAID</span>
+                    </div>
+                </div>
+
              </div>
           )}
+
         </div>
       </div>
     </div>
@@ -463,191 +557,123 @@ export const DetailModal = ({ isOpen, transaction, onClose, viewType }) => {
 };
 
 // ==========================================
-// 6. EXTEND MODAL
+// 6. EXTEND MODAL - z-[2100] (UPDATED)
 // ==========================================
 export const ExtendModal = ({ isOpen, transaction, onClose, onExtend, loading }) => {
-  useBodyScrollLock(isOpen);
   const [extendHours, setExtendHours] = useState(1);
+
   if (!isOpen || !transaction) return null;
+
   const oldTotalAmount = parseFloat(transaction.total_amount || 0); 
   const hourlyRate = oldTotalAmount / 22; 
   const rawAmount = hourlyRate * extendHours;
   const additionalAmount = Math.ceil(rawAmount / 10) * 10;
-  const currentOut = transaction.reservations?.[0]?.check_out_date ? new Date(transaction.reservations[0].check_out_date) : new Date();
+  
+  const currentOut = transaction.reservations?.[0]?.check_out_date 
+    ? new Date(transaction.reservations[0].check_out_date) 
+    : new Date();
+  
   const newOutDateObj = new Date(currentOut);
   newOutDateObj.setHours(newOutDateObj.getHours() + extendHours);
+  
   const formatTime = (date) => date.toLocaleString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
   const formatDate = (date) => date.toLocaleString('en-US', { month: 'short', day: 'numeric' });
 
+  const handleValueChange = (e) => {
+    const val = parseInt(e.target.value);
+    if (!isNaN(val) && val > 0) setExtendHours(val);
+  };
+
   const handleSubmit = () => {
-    const year = newOutDateObj.getFullYear(), month = String(newOutDateObj.getMonth() + 1).padStart(2, '0'), day = String(newOutDateObj.getDate()).padStart(2, '0');
-    const hours = String(newOutDateObj.getHours()).padStart(2, '0'), minutes = String(newOutDateObj.getMinutes()).padStart(2, '0'), seconds = String(newOutDateObj.getSeconds()).padStart(2, '0');
-    onExtend({ newCheckoutDate: `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`, additionalAmount, extensionType: 'Hourly', extensionValue: extendHours, extended_items: [{ name: 'Room/Amenity Extension', qty: extendHours, cost: additionalAmount }] });
+    const year = newOutDateObj.getFullYear();
+    const month = String(newOutDateObj.getMonth() + 1).padStart(2, '0');
+    const day = String(newOutDateObj.getDate()).padStart(2, '0');
+    const hours = String(newOutDateObj.getHours()).padStart(2, '0');
+    const minutes = String(newOutDateObj.getMinutes()).padStart(2, '0');
+    const seconds = String(newOutDateObj.getSeconds()).padStart(2, '0');
+    
+    const formattedLocal = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+
+    onExtend({
+      newCheckoutDate: formattedLocal, 
+      additionalAmount,
+      extensionType: 'Hourly',
+      extensionValue: extendHours,
+      extended_items: [{ name: 'Room/Amenity Extension', qty: extendHours, cost: additionalAmount }]
+    });
   };
 
   return (
-    <div className="fixed inset-0 z-[1300] flex items-center justify-center p-4">
-      <div className="fixed inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-[400px] overflow-hidden flex flex-col">
-        <div className="bg-[#F97316] px-6 py-5 flex justify-between items-start text-white"><div><h3 className="text-xl font-bold flex items-center gap-2"><Clock className="opacity-90" size={22} /> Extend Stay</h3><p className="text-orange-100 text-sm mt-1 opacity-90">{transaction.customer_name}</p></div><button onClick={onClose} disabled={loading} className="text-white/80 hover:text-white bg-white/10 hover:bg-white/20 p-1.5 rounded-full transition-colors"><X size={20} /></button></div>
-        <div className="p-6 bg-[#F8FAFC]"> 
-          <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-100 mb-4"><div className="flex items-center justify-between"><div><label className="block text-slate-800 font-bold text-base">Add Hours</label><span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Late Checkout</span></div><div className="flex items-center gap-1"><button onClick={() => setExtendHours(Math.max(1, extendHours - 1))} disabled={loading} className="w-10 h-10 flex items-center justify-center rounded-lg bg-gray-50 text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition-colors border border-gray-200"><Minus size={18} strokeWidth={3} /></button><div className="w-16 h-10 flex items-center justify-center bg-white border border-gray-200 rounded-lg mx-1"><input type="number" min="1" value={extendHours} onChange={e => setExtendHours(parseInt(e.target.value) || 1)} disabled={loading} className="w-full text-center text-xl font-bold text-slate-800 outline-none bg-transparent"/></div><button onClick={() => setExtendHours(extendHours + 1)} disabled={loading} className="w-10 h-10 flex items-center justify-center rounded-lg bg-orange-50 text-orange-500 hover:bg-orange-100 hover:text-orange-600 transition-colors border border-orange-100"><Plus size={18} strokeWidth={3} /></button></div></div></div>
-          <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-100 space-y-4"><div className="space-y-2 pb-4 border-b border-dashed border-gray-100"><div className="flex justify-between items-center text-sm"><span className="text-gray-400 font-medium">Current Check-out</span><span className="text-slate-700 font-bold">{formatDate(currentOut)}, {formatTime(currentOut)}</span></div><div className="flex justify-between items-center text-sm"><span className="text-orange-500 font-bold">New Check-out</span><span className="text-orange-600 font-bold">{formatDate(newOutDateObj)}, {formatTime(newOutDateObj)}</span></div></div><div className="flex justify-between items-center"><span className="text-slate-800 font-bold text-lg">Additional Fee (Paid Now)</span><span className="text-3xl font-extrabold text-green-500">₱{additionalAmount}</span></div></div>
-        </div>
-        <div className="p-6 bg-white border-t border-gray-50 flex gap-3"><button onClick={onClose} disabled={loading} className="flex-1 py-3.5 border border-gray-200 rounded-xl font-bold text-gray-500 hover:bg-gray-50 hover:text-gray-700 transition-colors text-sm">Cancel</button><button onClick={handleSubmit} disabled={loading || additionalAmount <= 0} className="flex-1 py-3.5 bg-[#F97316] text-white rounded-xl font-bold hover:bg-orange-600 shadow-lg shadow-orange-200 transition-all active:scale-95 disabled:opacity-50 text-sm">{loading ? 'Processing...' : `Confirm (+₱${additionalAmount})`}</button></div>
-      </div>
-    </div>
-  );
-};
-
-// ==========================================
-// 7. NEW BOOKING CONFIRMATION MODAL
-// ==========================================
-export const WalkInConfirmationModal = ({ isOpen, onClose, onConfirm, formData, cart, total, loading }) => {
-  useBodyScrollLock(isOpen);
-  if (!isOpen) return null;
-
-  const duration = calculateDuration(formData.checkInDate, formData.checkOutDate);
-
-  return (
-    <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4">
-      <div className="fixed inset-0 bg-black/60 backdrop-blur-md" onClick={onClose} />
-      
-      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh] animate-slideIn">
+    <div className="fixed inset-0 z-[2100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-fadeIn">
+      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-[400px] overflow-hidden flex flex-col">
         
-        {/* Header */}
-        <div className="shrink-0 bg-[#F97316] px-6 py-4 flex justify-between items-center text-white border-b border-orange-600 shadow-sm z-10">
-          <h3 className="text-lg font-bold flex items-center gap-2">
-            <CheckCircle className="text-white" size={20}/> Confirm Booking
-          </h3>
-          <button onClick={onClose} disabled={loading} className="text-white/80 hover:text-white transition-colors p-1 hover:bg-white/20 rounded-full">
-            <X size={20} />
+        <div className="bg-[#F97316] px-6 py-5 flex justify-between items-start text-white">
+          <div>
+             <h3 className="text-xl font-bold flex items-center gap-2"><Clock className="opacity-90" size={22} /> Extend Stay</h3>
+             <p className="text-orange-100 text-sm mt-1 opacity-90">{transaction.customer_name}</p>
+          </div>
+          <button onClick={onClose} disabled={loading} className="text-white/80 hover:text-white bg-white/10 hover:bg-white/20 p-1.5 rounded-full transition-colors">
+             <X size={20} />
           </button>
         </div>
 
-        {/* Scrollable Body */}
-        <div className="flex-1 overflow-y-auto px-6 py-6 custom-scrollbar space-y-5">
-          <div className="bg-gray-50 p-4 rounded-xl border border-gray-200">
-            <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Customer Information</h4>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <p className="text-xs text-gray-400">Full Name</p>
-                <p className="font-bold text-gray-800">{formData.fullName}</p>
-              </div>
-              <div>
-                <p className="text-xs text-gray-400">Contact</p>
-                <p className="font-bold text-gray-800">{formData.contactNumber}</p>
-              </div>
-              <div className="col-span-2">
-                <p className="text-xs text-gray-400">Address</p>
-                <p className="font-medium text-gray-800 text-sm">{formData.address}</p>
-              </div>
-            </div>
-          </div>
+        <div className="p-6 bg-[#F8FAFC]"> 
+          
+          <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-100 mb-4">
+             <div className="flex items-center justify-between">
+                <div>
+                    <label className="block text-slate-800 font-bold text-base">Add Hours</label>
+                    <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Late Checkout</span>
+                </div>
+                
+                <div className="flex items-center gap-1">
+                    <button onClick={() => setExtendHours(Math.max(1, extendHours - 1))} disabled={loading} className="w-10 h-10 flex items-center justify-center rounded-lg bg-gray-50 text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition-colors border border-gray-200">
+                        <Minus size={18} strokeWidth={3} />
+                    </button>
+                    
+                    <div className="w-16 h-10 flex items-center justify-center bg-white border border-gray-200 rounded-lg mx-1">
+                        <input type="number" min="1" value={extendHours} onChange={handleValueChange} disabled={loading} className="w-full text-center text-xl font-bold text-slate-800 outline-none bg-transparent"/>
+                    </div>
 
-          <div className="flex gap-4">
-             <div className="flex-1 bg-orange-50 p-3 rounded-xl border border-orange-100">
-                <p className="text-xs text-orange-600 font-bold uppercase">Check In</p>
-                <p className="font-bold text-gray-900 text-sm mt-1">
-                  {new Date(formData.checkInDate).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute:'2-digit' })}
-                </p>
-             </div>
-             <div className="flex-1 bg-orange-50 p-3 rounded-xl border border-orange-100">
-                <p className="text-xs text-orange-600 font-bold uppercase">Check Out</p>
-                <p className="font-bold text-gray-900 text-sm mt-1">
-                  {new Date(formData.checkOutDate).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute:'2-digit' })}
-                </p>
+                    <button onClick={() => setExtendHours(extendHours + 1)} disabled={loading} className="w-10 h-10 flex items-center justify-center rounded-lg bg-orange-50 text-orange-500 hover:bg-orange-100 hover:text-orange-600 transition-colors border border-orange-100">
+                        <Plus size={18} strokeWidth={3} />
+                    </button>
+                </div>
              </div>
           </div>
 
-          <div className="bg-purple-50 p-3 rounded-xl border border-purple-100 flex justify-between items-center">
-             <span className="text-xs text-purple-600 font-bold uppercase tracking-wider flex items-center gap-1">
-               <Clock size={14}/> Total Duration
-             </span>
-             <span className="font-bold text-purple-900 text-sm">{duration} Night{duration > 1 ? 's' : ''}</span>
-          </div>
+          <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-100 space-y-4">
+             <div className="space-y-2 pb-4 border-b border-dashed border-gray-100">
+                <div className="flex justify-between items-center text-sm">
+                    <span className="text-gray-400 font-medium">Current Check-out</span>
+                    <span className="text-slate-700 font-bold">{formatDate(currentOut)}, {formatTime(currentOut)}</span>
+                </div>
+                <div className="flex justify-between items-center text-sm">
+                    <span className="text-orange-500 font-bold">New Check-out</span>
+                    <span className="text-orange-600 font-bold">{formatDate(newOutDateObj)}, {formatTime(newOutDateObj)}</span>
+                </div>
+             </div>
 
-          <div>
-            <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Order Summary</h4>
-            <div className="border rounded-xl overflow-hidden">
-                <table className="w-full text-sm">
-                    <thead className="bg-gray-100 text-gray-600 font-medium">
-                        <tr>
-                            <th className="text-left px-3 py-2">Item</th>
-                            <th className="text-center px-3 py-2">Qty</th>
-                            <th className="text-right px-3 py-2">Subtotal</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-100">
-                        {cart.map((item, idx) => (
-                            <tr key={idx}>
-                                <td className="px-3 py-2 text-gray-800">
-                                    {item.amenity_name}
-                                    <span className="block text-[10px] text-gray-400">@ ₱{item.amenity_price} x {duration} nights</span>
-                                </td>
-                                <td className="px-3 py-2 text-center text-gray-500">x{item.quantity}</td>
-                                <td className="px-3 py-2 text-right font-medium">₱{(item.amenity_price * item.quantity * duration).toLocaleString()}</td>
-                            </tr>
-                        ))}
-                        
-                        {formData.numGuest > 0 && (
-                             <tr>
-                                <td className="px-3 py-2 text-gray-800">
-                                    Entrance Fee
-                                    <span className="block text-[10px] text-gray-400">({formData.numGuest} pax @ ₱50)</span>
-                                </td>
-                                <td className="px-3 py-2 text-center text-gray-500">-</td>
-                                <td className="px-3 py-2 text-right font-medium">₱{(formData.numGuest * 50).toLocaleString()}</td>
-                             </tr>
-                        )}
-                    </tbody>
-                </table>
-            </div>
-          </div>
-
-          <div className="flex justify-between items-center pt-2">
-             <span className="font-bold text-gray-600">Total Payable</span>
-             <span className="text-2xl font-extrabold text-[#F97316]">₱{total.toLocaleString()}</span>
+             <div className="flex justify-between items-center">
+                <span className="text-slate-800 font-bold text-lg">Additional Fee (Paid Now)</span>
+                <span className="text-3xl font-extrabold text-green-500">₱{additionalAmount}</span>
+             </div>
           </div>
 
         </div>
 
-        <div className="shrink-0 p-4 bg-gray-50 border-t border-gray-200 flex gap-3 rounded-b-2xl">
-            <button onClick={onClose} disabled={loading} className="flex-1 py-3 bg-[#F97316] text-white rounded-xl font-bold hover:bg-orange-600 transition-colors shadow-sm">
-                Back
-            </button>
-            <button onClick={onConfirm} disabled={loading} className="flex-1 py-3 bg-green-400 text-white rounded-xl font-bold hover:bg-[#7C2D12] shadow-lg transition-all flex items-center justify-center gap-2">
-                {loading ? <RefreshCw className="animate-spin" size={20}/> : <CheckCircle size={20}/>}
-                {loading ? 'Processing...' : 'Confirm Payment'}
-            </button>
+        <div className="p-6 bg-white border-t border-gray-50 flex gap-3">
+          <button onClick={onClose} disabled={loading} className="flex-1 py-3.5 border border-gray-200 rounded-xl font-bold text-gray-500 hover:bg-gray-50 hover:text-gray-700 transition-colors text-sm">
+            Cancel
+          </button>
+          <button onClick={handleSubmit} disabled={loading || additionalAmount <= 0} className="flex-1 py-3.5 bg-[#F97316] text-white rounded-xl font-bold hover:bg-orange-600 shadow-lg shadow-orange-200 transition-all active:scale-95 disabled:opacity-50 disabled:shadow-none text-sm">
+            {loading ? 'Processing...' : `Confirm (+₱${additionalAmount})`}
+          </button>
         </div>
+
       </div>
     </div>
   );
 };
 
-export const WalkInSuccessModal = ({ isOpen, onClose, transactionRef }) => {
-    useBodyScrollLock(isOpen);
-    if (!isOpen) return null;
-    return (
-        <div className="fixed inset-0 z-[1400] flex items-center justify-center p-4">
-            <div className="fixed inset-0 bg-black/70 backdrop-blur-sm animate-fadeIn" onClick={onClose}/>
-            <div className="relative bg-white rounded-3xl shadow-2xl p-8 max-w-sm w-full text-center overflow-hidden">
-                <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                    <CheckCircle className="text-green-600" size={40} />
-                </div>
-                <h2 className="text-2xl font-extrabold text-gray-800 mb-2">Booking Success!</h2>
-                <p className="text-gray-500 mb-6">Transaction has been recorded.</p>
-                <div className="bg-gray-100 p-3 rounded-xl mb-6 border border-gray-200 border-dashed">
-                    <p className="text-xs text-gray-500 uppercase font-bold tracking-wider">Transaction Ref</p>
-                    <p className="text-lg font-mono font-bold text-gray-800 select-all">{transactionRef}</p>
-                </div>
-                <button onClick={onClose} className="w-full py-3.5 bg-green-600 hover:bg-green-700 text-white font-bold rounded-xl shadow-lg shadow-green-200 transition-all active:scale-95">
-                    Create New Booking
-                </button>
-            </div>
-        </div>
-    );
-};
-
-export default WalkInModal;
+export default MobileWalkinModal;
