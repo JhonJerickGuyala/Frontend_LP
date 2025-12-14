@@ -125,7 +125,6 @@ const OwnerAnalytics = () => {
       setActiveFilter('custom'); 
   };
 
-  // ... (KPI Metrics same as before) ...
   const kpiMetrics = useMemo(() => {
     const totalBookings = data.sources.reduce((acc, curr) => acc + curr.count, 0);
     const statusData = [...data.operations].sort((a,b) => b.count - a.count);
@@ -258,8 +257,8 @@ const OwnerAnalytics = () => {
             </div>
         </div>
 
-        {/* TRANSACTION TABLE */}
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col h-[600px]"> {/* Set fixed height for the card */}
+        {/* TRANSACTION TABLE  */}
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col h-[600px]">
             <div className="p-4 sm:p-6 border-b border-slate-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-slate-50/50 shrink-0">
                 <h3 className="font-bold text-slate-800 flex items-center gap-2"><Filter size={18} className="text-orange-500"/> Transaction History</h3>
                 <div className="flex p-1 bg-slate-200/60 rounded-lg w-full sm:w-auto overflow-x-auto">
@@ -420,7 +419,13 @@ const StatCard = ({ title, value, trendValue, periodLabel, isPositive, color, bg
       <div className="flex justify-between items-start mb-2 relative z-10"><div className={`p-3 rounded-xl transition-colors ${bg} ${color}`}><Icon size={24} strokeWidth={2} /></div></div>
       <div className="relative z-10 mt-2">
          <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">{title}</p>
-         <h4 className="text-2xl md:text-3xl font-bold text-slate-800 tracking-tight mt-1">{isMoney ? '₱' : ''}{value.toLocaleString()}</h4>
+         <h4 className="text-2xl md:text-3xl font-bold text-slate-800 tracking-tight mt-1">
+            {isMoney ? '₱' : ''}
+            {Number(value).toLocaleString(undefined, {
+                minimumFractionDigits: isMoney ? 2 : 0,
+                maximumFractionDigits: 2
+            })}
+         </h4>
          <div className="flex items-center gap-2 mt-2">
              <div className={`flex items-center gap-0.5 text-xs font-bold px-1.5 py-0.5 rounded ${isPositive ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'}`}>
                 {isPositive ? <ArrowUpRight size={12}/> : <ArrowDownRight size={12}/>}<span>{trendValue}</span>
