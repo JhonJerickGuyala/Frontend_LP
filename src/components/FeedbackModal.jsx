@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, Star, Loader2 } from 'lucide-react';
 
 const FeedbackModal = ({ onClose, onSubmit, isSubmitting }) => {
@@ -17,6 +17,14 @@ const FeedbackModal = ({ onClose, onSubmit, isSubmitting }) => {
     { id: 'cleanliness', label: 'Cleanliness' },
     { id: 'amenities', label: 'Amenities' }
   ];
+
+  // Prevent background scrolling when modal is open
+  useEffect(() => {
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, []);
 
   // --- LOGIC ---
   
@@ -63,18 +71,18 @@ const FeedbackModal = ({ onClose, onSubmit, isSubmitting }) => {
   };
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center px-4">
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 sm:p-6">
       {/* Backdrop (Click to close) */}
       <div 
         className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity"
         onClick={onClose}
       />
 
-      {/* Modal Container */}
-      <div className="relative bg-white w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+      {/* Modal Container - Fixed Max Height & Scrolling */}
+      <div className="relative bg-white w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in fade-in zoom-in-95 duration-200">
         
-        {/* Header */}
-        <div className="bg-[#ea580c] p-6 text-white flex justify-between items-start">
+        {/* Header - Fixed at Top */}
+        <div className="bg-[#ea580c] p-5 sm:p-6 text-white flex justify-between items-start shrink-0">
           <div>
             <h3 className="text-xl font-bold">Write a Review</h3>
             <p className="text-orange-100 text-sm mt-1">We value your feedback!</p>
@@ -87,91 +95,93 @@ const FeedbackModal = ({ onClose, onSubmit, isSubmitting }) => {
           </button>
         </div>
 
-        {/* Form Body */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-6">
-          
-          {/* Rating Section */}
-          <div className="space-y-4">
-            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Rate your experience</p>
+        {/* Scrollable Form Body */}
+        <div className="overflow-y-auto p-5 sm:p-6">
+            <form onSubmit={handleSubmit} className="space-y-6">
             
-            {categories.map((cat) => (
-              <div key={cat.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-gray-50 pb-2 last:border-0">
-                <span className="text-sm font-medium text-gray-700">{cat.label}</span>
-                <div className="flex gap-1">
-                  {[1, 2, 3, 4, 5].map((star) => (
-                    <button
-                      key={star}
-                      type="button"
-                      onClick={() => handleRatingChange(cat.id, star)}
-                      className="focus:outline-none transition-transform active:scale-110"
-                    >
-                      <Star 
-                        size={24} 
-                        className={`${
-                          star <= ratings[cat.id] 
-                            ? "fill-yellow-400 text-yellow-400" 
-                            : "text-gray-200 hover:text-gray-300"
-                        } transition-colors`} 
-                      />
-                    </button>
-                  ))}
+            {/* Rating Section */}
+            <div className="space-y-4">
+                <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Rate your experience</p>
+                
+                {categories.map((cat) => (
+                <div key={cat.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-gray-50 pb-2 last:border-0">
+                    <span className="text-sm font-medium text-gray-700">{cat.label}</span>
+                    <div className="flex gap-1">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                        <button
+                        key={star}
+                        type="button"
+                        onClick={() => handleRatingChange(cat.id, star)}
+                        className="focus:outline-none transition-transform active:scale-110 p-1" // Added padding for easier tapping
+                        >
+                        <Star 
+                            size={24} 
+                            className={`${
+                            star <= ratings[cat.id] 
+                                ? "fill-yellow-400 text-yellow-400" 
+                                : "text-gray-200 hover:text-gray-300"
+                            } transition-colors`} 
+                        />
+                        </button>
+                    ))}
+                    </div>
                 </div>
-              </div>
-            ))}
-          </div>
-
-          {/* Overall Average Display */}
-          <div className="flex items-center justify-between bg-orange-50 p-3 rounded-lg">
-            <span className="text-sm font-semibold text-gray-600">Overall Rating:</span>
-            <span className="text-xl font-bold text-[#ea580c]">
-              {getAverage()} <span className="text-sm font-normal text-gray-500">/ 5.0</span>
-            </span>
-          </div>
-
-          <hr className="border-gray-100" />
-
-          {/* Text Inputs */}
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Name (Optional)</label>
-              <input 
-                type="text" 
-                placeholder="Juan Dela Cruz"
-                className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#ea580c] focus:border-transparent text-sm"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-              />
+                ))}
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Comment</label>
-              <textarea 
-                rows="3"
-                placeholder="Tell us about your stay..."
-                className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#ea580c] focus:border-transparent text-sm resize-none"
-                value={comment}
-                onChange={(e) => setComment(e.target.value)}
-              />
+            {/* Overall Average Display */}
+            <div className="flex items-center justify-between bg-orange-50 p-3 rounded-lg">
+                <span className="text-sm font-semibold text-gray-600">Overall Rating:</span>
+                <span className="text-xl font-bold text-[#ea580c]">
+                {getAverage()} <span className="text-sm font-normal text-gray-500">/ 5.0</span>
+                </span>
             </div>
-          </div>
 
-          {/* Submit Button */}
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="w-full py-3 bg-[#ea580c] hover:bg-[#c2410c] text-white font-bold rounded-lg transition-all flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
-          >
-            {isSubmitting ? (
-              <>
-                <Loader2 size={20} className="animate-spin" />
-                <span>Submitting...</span>
-              </>
-            ) : (
-              "Submit Review"
-            )}
-          </button>
+            <hr className="border-gray-100" />
 
-        </form>
+            {/* Text Inputs */}
+            <div className="space-y-4">
+                <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Name (Optional)</label>
+                <input 
+                    type="text" 
+                    placeholder="Juan Dela Cruz"
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#ea580c] focus:border-transparent text-sm"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                />
+                </div>
+
+                <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Comment</label>
+                <textarea 
+                    rows="3"
+                    placeholder="Tell us about your stay..."
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#ea580c] focus:border-transparent text-sm resize-none"
+                    value={comment}
+                    onChange={(e) => setComment(e.target.value)}
+                />
+                </div>
+            </div>
+
+            {/* Submit Button */}
+            <button
+                type="submit"
+                disabled={isSubmitting}
+                className="w-full py-3 bg-[#ea580c] hover:bg-[#c2410c] text-white font-bold rounded-lg transition-all flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
+            >
+                {isSubmitting ? (
+                <>
+                    <Loader2 size={20} className="animate-spin" />
+                    <span>Submitting...</span>
+                </>
+                ) : (
+                "Submit Review"
+                )}
+            </button>
+
+            </form>
+        </div>
       </div>
     </div>
   );
