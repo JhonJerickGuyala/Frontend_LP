@@ -4,8 +4,6 @@ import { useNavigate, useLocation } from "react-router-dom";
 import Header from "../../components/Header.jsx";
 import Footer from "../../components/Footer.jsx";
 import api from "../../config/axios"; 
-
-// Import Components
 import HeroSection from "../../components/ReservationComponents/HeroSection.jsx";
 import ActionButtons from "../../components/ReservationComponents/ActionButtons.jsx";
 import ReservationForm from "../../components/ReservationComponents/ReservationForm.jsx";
@@ -25,7 +23,6 @@ const Reservations = () => {
   const selectedAmenity = location.state?.selectedAmenity;
   const backgroundImageUrl = "/images/bg.jpg";
 
-  // State Management
   const [cart, setCart] = useState([]);
   const [amenities, setAmenities] = useState([]); 
   const [showCartModal, setShowCartModal] = useState(false);
@@ -33,10 +30,8 @@ const Reservations = () => {
   const [reservationToCancel, setReservationToCancel] = useState(null);
   const [currentReservations, setCurrentReservations] = useState([]);
   
-  // State for locally hidden history items
   const [hiddenHistoryIds, setHiddenHistoryIds] = useState([]);
 
-  // Updated State: Included numGuest (default to 1)
   const [reservationForm, setReservationForm] = useState({
     fullName: "",
     address: "",
@@ -88,29 +83,41 @@ const Reservations = () => {
       setCart([]);
     }
     
-    // Set kung kaninong cart ang na-load para hindi mag-save sa maling storage
     setLoadedUserKey(storageKey);
   }, [user]);
 
-
+  // Save Cart based on User Identity
   useEffect(() => {
     const userId = user?.id || user?._id || user?.userId;
     const currentKey = userId ? `cart_${userId}` : "cart_guest";
     
-    // Check muna kung ang cart na nasa screen (loadedUserKey) ay match sa user na naka-login (currentKey)
-    // Para hindi ma-overwrite ang cart ng guest gamit ang cart ng user (o vice versa) habang nagpapalit
     if (loadedUserKey === currentKey) {
       console.log(`💾 Saving cart to key: ${currentKey}`, cart);
       localStorage.setItem(currentKey, JSON.stringify(cart));
     }
   }, [cart, user, loadedUserKey]);
 
-  // ------------------------------------------------------------------
-  // FETCH AVAILABILITY WITH LOCAL TIME FORMATTING
-  // ------------------------------------------------------------------
+  useEffect(() => {
+    if (user) {
+      const userId = user.id || user._id || user.userId;
+      const storageKey = `hidden_history_${userId}`;
+      
+      const storedHiddenIds = localStorage.getItem(storageKey);
+      if (storedHiddenIds) {
+        try {
+          setHiddenHistoryIds(JSON.parse(storedHiddenIds));
+        } catch (e) {
+          console.error("Error parsing hidden history:", e);
+          setHiddenHistoryIds([]);
+        }
+      } else {
+          setHiddenHistoryIds([]);
+      }
+    }
+  }, [user]);
+
   const fetchAvailability = async () => {
     try {
-      // 1. Kapag wala pang Check-in, walang gagawin.
       if (!reservationForm.checkInDate) return;
 
       let url = '/api/transactions/check-availability';
@@ -118,17 +125,12 @@ const Reservations = () => {
 
       params.checkIn = reservationForm.checkInDate;
 
-      // 2. CRITICAL CHANGE: Manual Date Formatting (No toISOString)
-      // Para hindi magbago ang oras (Timezone issue fix)
       if (reservationForm.checkOutDate) {
         params.checkOut = reservationForm.checkOutDate;
       } else {
         const startDate = new Date(reservationForm.checkInDate);
-        
-        // Magdagdag ng 1 minute
         startDate.setMinutes(startDate.getMinutes() + 1);
 
-        // Manual formatting: YYYY-MM-DDTHH:mm
         const year = startDate.getFullYear();
         const month = String(startDate.getMonth() + 1).padStart(2, '0');
         const day = String(startDate.getDate()).padStart(2, '0');
@@ -140,7 +142,7 @@ const Reservations = () => {
         params.checkOut = formattedCheckOut;
       }
 
-      console.log("🔍 Checking Availability params:", params); // Debug log
+      console.log("🔍 Checking Availability params:", params); 
 
       const res = await api.get(url, { params });
       
@@ -152,13 +154,11 @@ const Reservations = () => {
     }
   };
 
-  // Trigger agad kapag nagbago ang Check-in (kahit wala pang check-out)
   useEffect(() => {
     fetchAvailability();
   }, [reservationForm.checkInDate, reservationForm.checkOutDate]);
 
 
-  // Automatically fetch reservations when user is logged in
   useEffect(() => {
     if (user && isAuthenticated) {
       loadReservationsOnPageLoad();
@@ -167,7 +167,6 @@ const Reservations = () => {
     }
   }, [user, isAuthenticated]);
 
-  // Function to load reservations on page load
   const loadReservationsOnPageLoad = async () => {
     if (!user || isLoadingReservations) return;
     
@@ -239,23 +238,56 @@ const Reservations = () => {
     }
   };
 
-  // Update reservation count (Active Only)
   useEffect(() => {
     const activeStatuses = ['Pending', 'Confirmed', 'Paid', 'Check-in', 'Checked-In'];
     const activeCount = currentReservations.filter(r => activeStatuses.includes(r.status)).length;
     setReservationCount(activeCount);
   }, [currentReservations]);
 
-  // Function to handle local deletion (Hide from view)
   const handleDeleteHistory = (id) => {
     if (window.confirm("Are you sure you want to remove this from your history view?")) {
-      setHiddenHistoryIds(prev => [...prev, id]);
+      setHiddenHistoryIds(prev => {
+        const newHiddenIds = [...prev, id];
+        
+        if (user) {
+            const userId = user.id || user._id || user.userId;
+            const storageKey = `hidden_history_${userId}`;
+            localStorage.setItem(storageKey, JSON.stringify(newHiddenIds));
+        }
+        
+        return newHiddenIds;
+      });
+    }
+  };
+
+  const handleDeleteAllHistory = () => {
+    if (window.confirm("Are you sure you want to clear your entire reservation history? This will hide them from your view.")) {
+        
+        const historyStatuses = ['Cancelled', 'Declined', 'Completed', 'Checkout', 'Check-out'];
+        
+        const historyIdsToHide = currentReservations
+            .filter(r => historyStatuses.includes(r.status) && !hiddenHistoryIds.includes(r.id))
+            .map(r => r.id);
+
+        if (historyIdsToHide.length === 0) return;
+
+        setHiddenHistoryIds(prev => {
+            const newHiddenIds = [...prev, ...historyIdsToHide];
+            
+            // Update Local Storage for persistence
+            if (user) {
+                const userId = user.id || user._id || user.userId;
+                const storageKey = `hidden_history_${userId}`;
+                localStorage.setItem(storageKey, JSON.stringify(newHiddenIds));
+            }
+            
+            return newHiddenIds;
+        });
     }
   };
 
   const visibleReservations = currentReservations.filter(r => !hiddenHistoryIds.includes(r.id));
 
-  // Disable body scroll on modal open
   useEffect(() => {
     if (showCartModal || showReservationsModal || reservationToCancel) {
       document.body.style.overflow = 'hidden';
@@ -270,7 +302,6 @@ const Reservations = () => {
     };
   }, [showCartModal, showReservationsModal, reservationToCancel]);
 
-  // Validation functions
   const validatePhoneNumber = (phone) => {
     const phoneRegex = /^09\d{9}$/;
     return phoneRegex.test(phone);
@@ -287,7 +318,6 @@ const Reservations = () => {
       errors.address = "Address is required";
     }
     
-    // Validate Number of Guests
     if (!reservationForm.numGuest || parseInt(reservationForm.numGuest) <= 0) {
       errors.numGuest = "Please enter a valid number of guests (minimum 1)";
     }
@@ -316,7 +346,6 @@ const Reservations = () => {
     return Object.keys(errors).length === 0;
   };
 
-  // Handle form input changes
   const handleReservationInputChange = (e) => {
     const { name, value, files } = e.target;
     
@@ -399,7 +428,6 @@ const Reservations = () => {
   };
 
   const calculateTotal = () => {
-    // 1. Calculate number of days
     let days = 1;
     if (reservationForm.checkInDate && reservationForm.checkOutDate) {
       const start = new Date(reservationForm.checkInDate);
@@ -411,15 +439,12 @@ const Reservations = () => {
     }
     days = days > 0 ? days : 1;
 
-    // 2. Calculate Entrance Fees
     const guestCount = parseInt(reservationForm.numGuest) || 0;
     const entranceFeePerHead = 50;
     const totalEntranceFee = guestCount * entranceFeePerHead;
 
-    // 3. Calculate Amenities Total
     const cartTotal = cart.reduce((total, item) => total + (item.amenity_price * item.quantity), 0);
 
-    // 4. Final Calculation: (Amenities + Entrance) * Days
     const grandTotal = (cartTotal + totalEntranceFee) * days;
 
     return grandTotal;
@@ -427,7 +452,6 @@ const Reservations = () => {
 
   const calculateDownpayment = () => calculateTotal() * 0.2;
 
-  // Handle form submission
   const handleReservationSubmit = async (e) => {
     e.preventDefault();
     
@@ -441,25 +465,18 @@ const Reservations = () => {
       return;
     }
 
-    // ------------------------------------------------------------------
-    // CONFLICT CHECKING GUARD (The "Pulis")
-    // ------------------------------------------------------------------
     const hasConflict = cart.some(item => {
-        // Find availability for this item
         const amenityStatus = amenities.find(a => a.id === item.amenity_id);
-        if (!amenityStatus) return false; // If not found, assume safe or handle differently
+        if (!amenityStatus) return false;
         
-        // If qty in cart > slots_left, it's a conflict
         return item.quantity > amenityStatus.slots_left;
     });
 
     if (hasConflict) {
         alert("Some items in your cart are fully booked or exceed available slots for the selected dates. Please check your cart and update quantities.");
-        // Optional: Open cart modal automatically so they can see which item is red
         setShowCartModal(true); 
         return;
     }
-    // ------------------------------------------------------------------
 
     try {
       const formData = new FormData();
@@ -523,7 +540,6 @@ const Reservations = () => {
     }
   };
 
-  // Cart Functions
   const handleAddToCart = (amenity) => {
     const exists = cart.find((item) => item.amenity_id === amenity.id);
 
@@ -572,22 +588,18 @@ const Reservations = () => {
     });
   };
 
-  // Auto-add selected amenity with cleanup
   useEffect(() => {
     if (selectedAmenity && loadedUserKey) { 
       handleAddToCart(selectedAmenity);
       navigate(location.pathname, { replace: true, state: {} });
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedAmenity, loadedUserKey]); 
 
-  // Logout
   const handleLogout = () => {
     logout();
     navigate("/");
   };
 
-  // Fetch reservations based on USER ID
   const fetchReservations = async () => {
     try {
       if (!user) {
@@ -679,7 +691,6 @@ const Reservations = () => {
     }
   };
 
-  // Fallback method
   const fetchReservationsFallback = async () => {
     try {
       const userData = JSON.parse(localStorage.getItem('userReservations') || '{}');
@@ -770,7 +781,6 @@ const Reservations = () => {
         const result = response.data;
 
         if (result.success) {
-          // Update the list locally to reflect status change immediately
           setCurrentReservations(prev => prev.map(r => {
              if (r.id === reservationToCancel.id) {
                return { ...r, status: 'Cancelled' };
@@ -852,6 +862,7 @@ const Reservations = () => {
         reservations={visibleReservations}
         onCancelReservation={handleCancelReservation}
         onDeleteHistory={handleDeleteHistory}
+        onDeleteAllHistory={handleDeleteAllHistory} 
       />
 
       <CartModal
