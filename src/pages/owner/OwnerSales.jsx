@@ -6,14 +6,16 @@ import {
 } from 'recharts';
 import { 
   TrendingUp, DollarSign, Wallet, Users, ArrowUpRight, ArrowDownRight, 
-  Filter, BarChart2, CheckCircle, XCircle, Clock, RefreshCw, Minus
+  Filter, BarChart2, CheckCircle, XCircle, Clock, RefreshCw, Minus, Info, Calculator
 } from 'lucide-react';
 
 const OwnerAnalytics = () => { 
   const [loading, setLoading] = useState(false);
   const [activeFilter, setActiveFilter] = useState('month'); 
   
+  // Modal States
   const [extensionModal, setExtensionModal] = useState(null); 
+  const [amountModal, setAmountModal] = useState(null); 
 
   // Initial State: First day of current month to Today
   const [dateRange, setDateRange] = useState(() => {
@@ -56,14 +58,8 @@ const OwnerAnalytics = () => {
   const getPreviousRange = (start, end) => {
       const startDate = new Date(start);
       const endDate = new Date(end);
-      
-      // Calculate duration in milliseconds
       const duration = endDate.getTime() - startDate.getTime();
-      
-      // Previous End Date = Start Date - 1 Day
       const prevEndDate = new Date(startDate.getTime() - (24 * 60 * 60 * 1000));
-      
-      // Previous Start Date = Previous End Date - Duration
       const prevStartDate = new Date(prevEndDate.getTime() - duration);
 
       return {
@@ -82,16 +78,13 @@ const OwnerAnalytics = () => {
     if (!isBackground) setLoading(true);
     
     try {
-      // 1. Calculate Previous Range
       const prevRange = getPreviousRange(dateRange.startDate, dateRange.endDate);
 
-      // 2. Fetch BOTH Current and Previous data in parallel
       const [currentRes, prevRes] = await Promise.all([
           api.get('/api/owner/analytics', { params: dateRange }),
           api.get('/api/owner/analytics', { params: prevRange })
       ]);
 
-      // 3. Update Current Data
       if(currentRes.data.success) {
         setData(currentRes.data.analytics);
         const parsedTransactions = (currentRes.data.transactions || []).map(t => ({
@@ -101,7 +94,6 @@ const OwnerAnalytics = () => {
         setTransactions(parsedTransactions);
       }
 
-      // 4. Update Previous Data (Financials only needed for KPI)
       if(prevRes.data.success) {
           setPrevFinancials(prevRes.data.analytics.financials);
       }
@@ -117,26 +109,15 @@ const OwnerAnalytics = () => {
     const today = new Date();
     let start = new Date();
     const end = new Date(); 
-
     setActiveFilter(type);
-
-    if (type === 'today') {
-        start = today;
-    } else if (type === 'week') {
-        // Last 7 days including today
-        start.setDate(today.getDate() - 6);
-    } else if (type === 'month') {
-        start = new Date(today.getFullYear(), today.getMonth(), 1);
-    } else if (type === 'year') {
-        start = new Date(today.getFullYear(), 0, 1);
-    }
+    if (type === 'today') start = today;
+    else if (type === 'week') start.setDate(today.getDate() - 6);
+    else if (type === 'month') start = new Date(today.getFullYear(), today.getMonth(), 1);
+    else if (type === 'year') start = new Date(today.getFullYear(), 0, 1);
     
     const newStart = start.toISOString().split('T')[0];
     const newEnd = end.toISOString().split('T')[0];
-
-    if (newStart !== dateRange.startDate || newEnd !== dateRange.endDate) {
-        setDateRange({ startDate: newStart, endDate: newEnd });
-    }
+    if (newStart !== dateRange.startDate || newEnd !== dateRange.endDate) setDateRange({ startDate: newStart, endDate: newEnd });
   };
 
   const handleManualDateChange = (key, value) => {
@@ -144,66 +125,28 @@ const OwnerAnalytics = () => {
       setActiveFilter('custom'); 
   };
 
-  // --- REAL COMPARISON LOGIC (Current vs Previous) ---
+  // ... (KPI Metrics same as before) ...
   const kpiMetrics = useMemo(() => {
     const totalBookings = data.sources.reduce((acc, curr) => acc + curr.count, 0);
     const statusData = [...data.operations].sort((a,b) => b.count - a.count);
-
-    // Calculate Growth Function
     const calculateGrowth = (current, previous) => {
         const currVal = Number(current || 0);
         const prevVal = Number(previous || 0);
         const diff = currVal - prevVal;
-
-        if (prevVal === 0) {
-            // Kung walang data noon, ipakita ang absolute value
-            return { 
-                value: diff > 0 ? `+₱${(diff/1000).toFixed(1)}k` : "0", 
-                isPositive: true,
-                isPercent: false 
-            };
-        }
-
+        if (prevVal === 0) return { value: diff > 0 ? `+₱${(diff/1000).toFixed(1)}k` : "0", isPositive: true, isPercent: false };
         const percent = (diff / prevVal) * 100;
-        // Kung sobrang laki (>500%), mag switch sa Absolute Amount para di unrealistic tingnan
-        if (Math.abs(percent) > 500) {
-             return {
-                value: `${diff > 0 ? '+' : ''}₱${(Math.abs(diff)/1000).toFixed(1)}k`,
-                isPositive: diff >= 0,
-                isPercent: false
-             };
-        }
-
-        return {
-            value: `${percent > 0 ? '+' : ''}${percent.toFixed(1)}%`,
-            isPositive: percent >= 0,
-            isPercent: true
-        };
+        if (Math.abs(percent) > 500) return { value: `${diff > 0 ? '+' : ''}₱${(Math.abs(diff)/1000).toFixed(1)}k`, isPositive: diff >= 0, isPercent: false };
+        return { value: `${percent > 0 ? '+' : ''}${percent.toFixed(1)}%`, isPositive: percent >= 0, isPercent: true };
     };
-
     const salesGrowth = calculateGrowth(data.financials.gross_sales, prevFinancials.gross_sales);
     const cashGrowth = calculateGrowth(data.financials.cash_collected, prevFinancials.cash_collected);
-
-    // Determine Label Text
     let labelText = "vs previous period";
     if (activeFilter === 'today') labelText = "vs yesterday";
     if (activeFilter === 'week') labelText = "vs last week";
     if (activeFilter === 'month') labelText = "vs last month";
     if (activeFilter === 'year') labelText = "vs last year";
-
-    // Collection Rate
-    const collectionRate = data.financials.gross_sales > 0 
-        ? (data.financials.cash_collected / data.financials.gross_sales) * 100 
-        : 0;
-
-    return { 
-        totalBookings, 
-        statusData, 
-        salesGrowth,
-        cashGrowth,
-        labelText,
-        collectionRate: collectionRate.toFixed(1)
-    };
+    const collectionRate = data.financials.gross_sales > 0 ? (data.financials.cash_collected / data.financials.gross_sales) * 100 : 0;
+    return { totalBookings, statusData, salesGrowth, cashGrowth, labelText, collectionRate: collectionRate.toFixed(1) };
   }, [data, prevFinancials, activeFilter]);
 
   const filterCounts = useMemo(() => ({
@@ -273,68 +216,24 @@ const OwnerAnalytics = () => {
 
       <div className="relative min-h-[500px]">
         
-        {/* KPI CARDS - USING REAL COMPARISON */}
+        {/* KPI CARDS */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6">
-            <StatCard 
-                title="Gross Sales" 
-                value={data.financials.gross_sales} 
-                icon={TrendingUp} 
-                trendValue={kpiMetrics.salesGrowth.value} 
-                periodLabel={kpiMetrics.labelText}
-                isPositive={kpiMetrics.salesGrowth.isPositive}
-                color="text-emerald-600" bg="bg-emerald-50" 
-            />
-            <StatCard 
-                title="Cash Collected" 
-                value={data.financials.cash_collected} 
-                icon={DollarSign} 
-                trendValue={kpiMetrics.cashGrowth.value}
-                periodLabel={kpiMetrics.labelText}
-                isPositive={kpiMetrics.cashGrowth.isPositive}
-                color="text-blue-600" bg="bg-blue-50" 
-            />
-            <StatCard 
-                title="Receivables" 
-                value={data.financials.receivables} 
-                icon={Wallet} 
-                trendValue={data.financials.receivables > 0 ? "Pending" : "Cleared"}
-                periodLabel="current status"
-                isPositive={data.financials.receivables === 0}
-                color={data.financials.receivables > 0 ? 'text-rose-500' : 'text-slate-500'} bg="bg-slate-50" 
-                isMoney={true}
-            />
-            <StatCard 
-                title="Total Bookings" 
-                value={kpiMetrics.totalBookings} 
-                icon={Users} 
-                trendValue={kpiMetrics.salesGrowth.isPercent ? kpiMetrics.salesGrowth.value : "---"}
-                periodLabel="booking momentum"
-                isPositive={kpiMetrics.salesGrowth.isPositive}
-                isMoney={false} 
-                color="text-orange-600" bg="bg-orange-50" 
-            />
+            <StatCard title="Gross Sales" value={data.financials.gross_sales} icon={TrendingUp} trendValue={kpiMetrics.salesGrowth.value} periodLabel={kpiMetrics.labelText} isPositive={kpiMetrics.salesGrowth.isPositive} color="text-emerald-600" bg="bg-emerald-50" />
+            <StatCard title="Cash Collected" value={data.financials.cash_collected} icon={DollarSign} trendValue={kpiMetrics.cashGrowth.value} periodLabel={kpiMetrics.labelText} isPositive={kpiMetrics.cashGrowth.isPositive} color="text-blue-600" bg="bg-blue-50" />
+            <StatCard title="Receivables" value={data.financials.receivables} icon={Wallet} trendValue={data.financials.receivables > 0 ? "Pending" : "Cleared"} periodLabel="current status" isPositive={data.financials.receivables === 0} color={data.financials.receivables > 0 ? 'text-rose-500' : 'text-slate-500'} bg="bg-slate-50" isMoney={true}/>
+            <StatCard title="Total Bookings" value={kpiMetrics.totalBookings} icon={Users} trendValue={kpiMetrics.salesGrowth.isPercent ? kpiMetrics.salesGrowth.value : "---"} periodLabel="booking momentum" isPositive={kpiMetrics.salesGrowth.isPositive} isMoney={false} color="text-orange-600" bg="bg-orange-50" />
         </div>
 
         {/* CHARTS SECTION */}
         <div className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-200 shadow-sm mb-6">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-2">
-                <div>
-                    <h3 className="font-bold text-slate-800">Revenue Trajectory</h3>
-                    <p className="text-xs text-slate-400">Daily sales performance</p>
-                </div>
-                <div className="flex items-center gap-2 text-[10px] bg-slate-50 px-3 py-1.5 rounded-full border border-slate-100">
-                    <span className="w-2 h-2 rounded-full bg-orange-500"></span> Total Sales
-                </div>
+                <div><h3 className="font-bold text-slate-800">Revenue Trajectory</h3><p className="text-xs text-slate-400">Daily sales performance</p></div>
+                <div className="flex items-center gap-2 text-[10px] bg-slate-50 px-3 py-1.5 rounded-full border border-slate-100"><span className="w-2 h-2 rounded-full bg-orange-500"></span> Total Sales</div>
             </div>
             <div className="h-[250px] sm:h-[300px] w-full">
                 <ResponsiveContainer width="100%" height="100%">
                     <AreaChart data={data.trend}>
-                        <defs>
-                            <linearGradient id="colorSales" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="5%" stopColor={THEME.primary} stopOpacity={0.2}/>
-                                <stop offset="95%" stopColor={THEME.primary} stopOpacity={0}/>
-                            </linearGradient>
-                        </defs>
+                        <defs><linearGradient id="colorSales" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor={THEME.primary} stopOpacity={0.2}/><stop offset="95%" stopColor={THEME.primary} stopOpacity={0}/></linearGradient></defs>
                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={THEME.grid} />
                         <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{fontSize: 10, fill: THEME.subtext}} tickFormatter={(str) => { const d = new Date(str); return `${d.getMonth()+1}/${d.getDate()}`; }} />
                         <YAxis axisLine={false} tickLine={false} tick={{fontSize: 10, fill: THEME.subtext}} tickFormatter={(val)=>`₱${val/1000}k`}/>
@@ -349,54 +248,13 @@ const OwnerAnalytics = () => {
             <div className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col h-[400px]">
                 <h3 className="font-bold text-slate-800 mb-1 flex items-center gap-2"><BarChart2 size={18} className="text-purple-500"/> Booking Status</h3>
                 <p className="text-xs text-slate-400 mb-6">Booking stages distribution</p>
-                <div className="flex-1">
-                    <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={kpiMetrics.statusData} layout="vertical" margin={{ left: 0, right: 10 }}>
-                            <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke={THEME.grid}/>
-                            <XAxis type="number" hide />
-                            <YAxis dataKey="booking_status" type="category" width={90} tick={{fontSize: 11, fill: THEME.text, fontWeight: 500}} axisLine={false} tickLine={false} />
-                            <Tooltip cursor={{fill: 'transparent'}} contentStyle={tooltipStyle} />
-                            <Bar dataKey="count" radius={[0, 4, 4, 0]} barSize={28} animationDuration={1000}>
-                                {kpiMetrics.statusData.map((entry, index) => (
-                                    <Cell key={`cell-${index}`} fill={STATUS_COLORS[entry.booking_status] || THEME.subtext} />
-                                ))}
-                            </Bar>
-                        </BarChart>
-                    </ResponsiveContainer>
-                </div>
+                <div className="flex-1"><ResponsiveContainer width="100%" height="100%"><BarChart data={kpiMetrics.statusData} layout="vertical" margin={{ left: 0, right: 10 }}><CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke={THEME.grid}/><XAxis type="number" hide /><YAxis dataKey="booking_status" type="category" width={90} tick={{fontSize: 11, fill: THEME.text, fontWeight: 500}} axisLine={false} tickLine={false} /><Tooltip cursor={{fill: 'transparent'}} contentStyle={tooltipStyle} /><Bar dataKey="count" radius={[0, 4, 4, 0]} barSize={28} animationDuration={1000}>{kpiMetrics.statusData.map((entry, index) => (<Cell key={`cell-${index}`} fill={STATUS_COLORS[entry.booking_status] || THEME.subtext} />))}</Bar></BarChart></ResponsiveContainer></div>
             </div>
             <div className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col h-[400px]">
                 <h3 className="font-bold text-slate-800 mb-1">Source Distribution</h3>
                 <p className="text-xs text-slate-400 mb-6">Online vs Walk-in</p>
-                <div className="flex-1 relative">
-                    <ResponsiveContainer width="100%" height="100%">
-                        <PieChart>
-                            <Pie data={data.sources} dataKey="count" nameKey="booking_type" cx="50%" cy="50%" innerRadius={70} outerRadius={90} paddingAngle={5}>
-                                {data.sources.map((entry, index) => (
-                                    <Cell key={`cell-${index}`} fill={entry.booking_type === 'Online' ? THEME.secondary : THEME.success} />
-                                ))}
-                            </Pie>
-                            <Tooltip contentStyle={tooltipStyle} />
-                        </PieChart>
-                    </ResponsiveContainer>
-                    <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                        <div className="flex flex-col items-center justify-center">
-                            <span className="block text-3xl font-extrabold text-slate-800 whitespace-nowrap">{kpiMetrics.totalBookings.toLocaleString()}</span>
-                            <span className="text-[10px] text-slate-400 uppercase tracking-widest font-bold">Total</span>
-                        </div>
-                    </div>
-                </div>
-                <div className="flex justify-center gap-8 mt-[-20px]">
-                    {data.sources.map((s) => (
-                        <div key={s.booking_type} className="flex items-center gap-2">
-                            <span className={`w-3 h-3 rounded-full ${s.booking_type === 'Online' ? 'bg-blue-500' : 'bg-emerald-500'}`}></span>
-                            <div>
-                                <span className="block text-sm font-bold text-slate-700">{s.booking_type}</span>
-                                <span className="text-xs text-slate-400">{s.count} bookings</span>
-                            </div>
-                        </div>
-                    ))}
-                </div>
+                <div className="flex-1 relative"><ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={data.sources} dataKey="count" nameKey="booking_type" cx="50%" cy="50%" innerRadius={70} outerRadius={90} paddingAngle={5}>{data.sources.map((entry, index) => (<Cell key={`cell-${index}`} fill={entry.booking_type === 'Online' ? THEME.secondary : THEME.success} />))}</Pie><Tooltip contentStyle={tooltipStyle} /></PieChart></ResponsiveContainer><div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none"><div className="flex flex-col items-center justify-center"><span className="block text-3xl font-extrabold text-slate-800 whitespace-nowrap">{kpiMetrics.totalBookings.toLocaleString()}</span><span className="text-[10px] text-slate-400 uppercase tracking-widest font-bold">Total</span></div></div></div>
+                <div className="flex justify-center gap-8 mt-[-20px]">{data.sources.map((s) => (<div key={s.booking_type} className="flex items-center gap-2"><span className={`w-3 h-3 rounded-full ${s.booking_type === 'Online' ? 'bg-blue-500' : 'bg-emerald-500'}`}></span><div><span className="block text-sm font-bold text-slate-700">{s.booking_type}</span><span className="text-xs text-slate-400">{s.count} bookings</span></div></div>))}</div>
             </div>
         </div>
 
@@ -418,17 +276,48 @@ const OwnerAnalytics = () => {
             <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse min-w-[800px]">
                 <thead className="bg-slate-50 text-slate-500 border-b border-slate-200 uppercase text-[10px] tracking-wider font-bold">
-                    <tr><th className="px-6 py-4">Reference</th><th className="px-6 py-4">Customer</th><th className="px-6 py-4">Details</th><th className="px-6 py-4 text-right">Amount</th><th className="px-6 py-4 text-right">Balance</th><th className="px-6 py-4 text-center">Status</th></tr>
+                    <tr>
+                        <th className="px-6 py-4">Reference</th>
+                        <th className="px-6 py-4">Customer</th>
+                        <th className="px-6 py-4">Details</th>
+                        <th className="px-6 py-4 text-right">Amount</th>
+                        <th className="px-6 py-4 text-right">Downpayment</th>
+                        <th className="px-6 py-4 text-right">Balance</th>
+                        <th className="px-6 py-4 text-center">Status</th>
+                    </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                    {sortedTableData.length === 0 ? ( <tr><td colSpan="6" className="text-center py-12 text-slate-400 italic">No transactions found.</td></tr> ) : (
+                    {sortedTableData.length === 0 ? ( <tr><td colSpan="7" className="text-center py-12 text-slate-400 italic">No transactions found.</td></tr> ) : (
                         sortedTableData.map(t => (
                             <tr key={t.id} className="group hover:bg-orange-50/10 transition-colors">
                             <td className="px-6 py-4 align-top"><span className="font-medium text-slate-700 text-xs font-mono bg-slate-100 px-2 py-1 rounded border border-slate-200 whitespace-nowrap">{t.transaction_ref}</span><p className="text-[10px] text-slate-400 mt-2 flex items-center gap-1 whitespace-nowrap"><Clock size={10}/>{t.formatted_date}</p></td>
                             <td className="px-6 py-4 align-top"><p className="font-bold text-slate-700 text-sm whitespace-nowrap">{t.customer_name}</p><span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full inline-block mt-1 ${t.booking_type === 'Online' ? 'bg-blue-50 text-blue-600' : 'bg-emerald-50 text-emerald-600'}`}>{t.booking_type}</span></td>
-                            <td className="px-6 py-4 align-top"><p className="text-xs text-slate-600 font-medium line-clamp-2 max-w-[200px]" title={t.amenities_summary}>{t.amenities_summary || "No amenities"}</p>
-                                {t.extensions && t.extensions.length > 0 && ( <button onClick={() => setExtensionModal({ ref: t.transaction_ref, data: t.extensions })} className="mt-2 text-[10px] text-purple-600 font-bold bg-purple-50 px-2 py-1 rounded border border-purple-100 hover:bg-purple-100 hover:border-purple-200 transition-colors flex items-center gap-1 w-fit cursor-pointer"><RefreshCw size={10}/> View {t.extensions.length} Extensions</button> )}</td>
-                            <td className="px-6 py-4 text-right align-top"><p className="font-bold text-slate-900 text-sm whitespace-nowrap">₱{parseFloat(t.total_amount).toLocaleString()}</p></td>
+                            
+                            {/* DETAILS COLUMN */}
+                            <td className="px-6 py-4 align-top">
+                                <p className="text-xs text-slate-600 font-medium line-clamp-2 max-w-[200px]" title={t.amenities_summary}>{t.amenities_summary || "No amenities"}</p>
+                                {t.extensions && t.extensions.length > 0 && ( 
+                                    <button onClick={() => setExtensionModal({ ref: t.transaction_ref, data: t.extensions })} className="mt-2 text-[10px] text-purple-600 font-bold bg-purple-50 px-2 py-1 rounded border border-purple-100 hover:bg-purple-100 hover:border-purple-200 transition-colors flex items-center gap-1 w-fit cursor-pointer">
+                                        <RefreshCw size={10}/> View {t.extensions.length} Extensions
+                                    </button> 
+                                )}
+                            </td>
+
+                            {/* AMOUNT COLUMN - WITH MODAL TRIGGER */}
+                            <td className="px-6 py-4 text-right align-top">
+                                <div 
+                                    onClick={() => setAmountModal(t)} 
+                                    className="flex items-center justify-end gap-1 cursor-pointer group/amt"
+                                    title="Click for Amount Breakdown"
+                                >
+                                    <p className="font-bold text-slate-900 text-sm whitespace-nowrap group-hover/amt:text-orange-600 transition-colors">
+                                        ₱{parseFloat(t.total_amount).toLocaleString()}
+                                    </p>
+                                    <Info size={14} className="text-slate-400 group-hover/amt:text-orange-500 transition-colors" />
+                                </div>
+                            </td>
+
+                            <td className="px-6 py-4 text-right align-top"><p className="text-slate-600 text-sm whitespace-nowrap">₱{parseFloat(t.downpayment || 0).toLocaleString(undefined, {minimumFractionDigits: 2})}</p></td>
                             <td className="px-6 py-4 text-right align-top">{parseFloat(t.balance) > 0 ? ( <span className="text-xs font-bold text-rose-500 whitespace-nowrap">₱{parseFloat(t.balance).toLocaleString()}</span> ) : ( <span className="text-[10px] text-emerald-700 font-bold bg-emerald-50 px-2 py-1 rounded-full border border-emerald-100">PAID</span> )}</td>
                             <td className="px-6 py-4 text-center align-top"><StatusBadge status={t.booking_status} /></td>
                             </tr>
@@ -440,7 +329,7 @@ const OwnerAnalytics = () => {
         </div>
       </div>
 
-      {/* MODAL & COMPONENTS */}
+      {/* EXTENSION MODAL */}
       {extensionModal && (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/40 backdrop-blur-[2px] p-4 animate-in fade-in duration-200 overscroll-contain">
             <div className="absolute inset-0" onClick={() => setExtensionModal(null)}></div>
@@ -453,6 +342,73 @@ const OwnerAnalytics = () => {
             </div>
         </div>
       )}
+
+      {/* AMOUNT BREAKDOWN MODAL */}
+      {amountModal && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/40 backdrop-blur-[2px] p-4 animate-in fade-in duration-200">
+            <div className="absolute inset-0" onClick={() => setAmountModal(null)}></div>
+            <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden border border-slate-100 animate-in zoom-in-95 duration-200 relative z-10">
+                
+                <div className="bg-orange-500 p-4 text-white flex justify-between items-start">
+                    <div>
+                        <h3 className="font-bold text-lg flex items-center gap-2"><Calculator size={18}/> Amount Breakdown</h3>
+                        <p className="text-xs text-orange-100 font-mono mt-1 opacity-90">{amountModal.transaction_ref}</p>
+                    </div>
+                    <button onClick={() => setAmountModal(null)} className="text-white/70 hover:text-white bg-white/10 hover:bg-white/20 rounded-full p-1 transition-all"><XCircle size={20}/></button>
+                </div>
+
+                <div className="p-6 space-y-4">
+                    {/* Calculation Logic */}
+                    {(() => {
+                        const total = parseFloat(amountModal.total_amount);
+                        const extensions = amountModal.extensions || [];
+                        const extensionTotal = extensions.reduce((acc, curr) => acc + Number(curr.additional_cost), 0);
+                        const baseAmount = total - extensionTotal;
+
+                        return (
+                            <>
+                                <div className="flex justify-between items-center pb-3 border-b border-slate-100 border-dashed">
+                                    <span className="text-sm text-slate-500">Initial Booking</span>
+                                    <span className="text-sm font-bold text-slate-700">₱{baseAmount.toLocaleString()}</span>
+                                </div>
+
+                                <div className="space-y-2">
+                                    <div className="flex justify-between items-center">
+                                        <span className="text-sm text-slate-500 flex items-center gap-1">
+                                            <RefreshCw size={12} className="text-purple-500"/> Total Extensions
+                                        </span>
+                                        <span className="text-sm font-bold text-purple-600">+₱{extensionTotal.toLocaleString()}</span>
+                                    </div>
+                                    
+                                    {/* Small details if there are extensions */}
+                                    {extensionTotal > 0 && (
+                                        <div className="bg-slate-50 p-2 rounded text-[10px] text-slate-500 space-y-1">
+                                            {extensions.map((ex, i) => (
+                                                <div key={i} className="flex justify-between">
+                                                    <span>• {ex.description || 'Extension'}</span>
+                                                    <span>{Number(ex.additional_cost).toLocaleString()}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div className="pt-3 border-t-2 border-slate-100 flex justify-between items-center mt-2">
+                                    <span className="text-base font-bold text-slate-800">Grand Total</span>
+                                    <span className="text-xl font-extrabold text-orange-600">₱{total.toLocaleString()}</span>
+                                </div>
+                            </>
+                        );
+                    })()}
+                </div>
+                
+                <div className="p-3 bg-slate-50 border-t border-slate-100 text-center">
+                    <button onClick={() => setAmountModal(null)} className="text-xs font-bold text-slate-500 hover:text-slate-700">Close</button>
+                </div>
+            </div>
+        </div>
+      )}
+
     </div>
   );
 };
