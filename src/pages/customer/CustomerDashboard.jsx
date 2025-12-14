@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import api from "../../config/axios";
-import { Loader2, CheckCircle2 } from "lucide-react";
+import { CheckCircle2 } from "lucide-react";
 import { useAuth } from "../AuthContext";
 
 // Components
@@ -16,7 +16,7 @@ import FeedbackSection from "../../components/customerdashboardcomponents/Feedba
 import ContactSection from "../../components/customerdashboardcomponents/ContactSection";
 import MapSection from "../../components/customerdashboardcomponents/MapSection";
 
-// Import FeedbackModal
+
 import FeedbackModal from "../../components/FeedbackModal";
 
 const backendUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
@@ -24,21 +24,24 @@ const backendUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 const CustomerDashboard = () => {
     const { user, logout } = useAuth();
     
-    // --- STATE MANAGEMENT ---
+
     const [reviews, setReviews] = useState([]);
     const [featuredAmenities, setFeaturedAmenities] = useState([]);
     const [isLoadingReviews, setIsLoadingReviews] = useState(true);
     const [isLoadingData, setIsLoadingData] = useState(true);
     
-    // Modal & Submission State
+
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [showFeedbackSuccess, setShowFeedbackSuccess] = useState(false);
     const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
     
-    // Transaction Ref para sa Review
+ 
     const [transactionRef, setTransactionRef] = useState(null); 
 
-    // --- FUNCTION 1: FETCH PUBLIC DATA (Amenities & Reviews) ---
+ 
+    const hasCheckedEligibility = useRef(false);
+
+
     const fetchPublicData = useCallback(async (isBackground = false) => {
         try {
             if (!isBackground) {
@@ -46,12 +49,9 @@ const CustomerDashboard = () => {
                 setIsLoadingData(true);
             }
 
-            // TRICK: Add ?t=Timestamp para iwas cache
-            const timestamp = new Date().getTime();
-
             // A. Featured Amenities
             try {
-                const response = await api.get(`/api/amenities/featured?t=${timestamp}`);
+                const response = await api.get(`/api/amenities/featured`);
                 if (response.data && response.data.length > 0) {
                     setFeaturedAmenities(response.data);
                 }
@@ -66,9 +66,12 @@ const CustomerDashboard = () => {
                 }
             }
 
-            // B. Public Reviews
+         
             try {
+                
+                const timestamp = new Date().getTime();
                 const reviewsRes = await api.get(`/api/feedbacks?t=${timestamp}`);
+                
                 const rawReviews = Array.isArray(reviewsRes.data) ? reviewsRes.data : [];
                 
                 const formattedReviews = rawReviews.map(review => ({
@@ -76,6 +79,7 @@ const CustomerDashboard = () => {
                     name: review.customer_name || review.name || "Guest",
                     average: review.average,
                     comment: review.comment,
+                    rawDate: review.created_at || review.date || new Date().toISOString(), 
                     date: review.date ? new Date(review.date).toLocaleDateString() : new Date().toLocaleDateString(),
                     ratings: {
                         service: review.service || 5,
@@ -83,8 +87,11 @@ const CustomerDashboard = () => {
                         amenities: review.amenities || 5
                     }
                 }));
-                // Show only high ratings (4.0+)
-                setReviews(formattedReviews.filter(r => parseFloat(r.average) >= 4.0));
+
+                formattedReviews.sort((a, b) => new Date(b.rawDate) - new Date(a.rawDate));
+
+                setReviews(formattedReviews);
+
             } catch (error) { 
                 console.log("Error fetching reviews:", error);
             }
@@ -99,22 +106,18 @@ const CustomerDashboard = () => {
         }
     }, []); 
 
-    // --- FUNCTION 2: CHECK ELIGIBILITY (Reservation Status - Auto Update) ---
     const checkEligibility = useCallback(async () => {
-        if (!user || !user.id || isReviewModalOpen) return;
+        if (hasCheckedEligibility.current) return;
+        if (!user || !user.id) return;
 
         try {
-            const timestamp = new Date().getTime();
-            const res = await api.get(`/api/reservations/user/${user.id}?refresh=${timestamp}`);
+            const res = await api.get(`/api/reservations/user/${user.id}`);
             
-            console.log(`[Auto-Refresh ${new Date().toLocaleTimeString()}] Checking bookings...`); // Para makita mo sa console na gumagana
-
             let bookings = [];
             if (Array.isArray(res.data)) bookings = res.data;
             else if (res.data && Array.isArray(res.data.reservations)) bookings = res.data.reservations;
             else if (res.data && Array.isArray(res.data.data)) bookings = res.data.data;
 
-            // Filter Active & Newest
             const activeBookings = bookings
                 .filter(b => ['checked-in', 'completed'].includes(b.status?.toLowerCase()))
                 .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
@@ -122,41 +125,38 @@ const CustomerDashboard = () => {
             for (const booking of activeBookings) {
                 if (!booking.transaction_ref) continue;
                 try {
-                    // Check status din with cache busting
-                    const checkRes = await api.get(`/api/feedbacks/check-status/${booking.transaction_ref}?t=${timestamp}`);
+                    const checkRes = await api.get(`/api/feedbacks/check-status/${booking.transaction_ref}`);
                     
                     if (checkRes.data.hasFeedback === false) {
-                        console.log("🔥 STATUS CHANGED! Showing Feedback Modal for:", booking.transaction_ref);
                         setTransactionRef(booking.transaction_ref); 
-                        setIsReviewModalOpen(true); 
+                        setIsReviewModalOpen(true);
+                        
+                        hasCheckedEligibility.current = true; 
+                        
                         break; 
                     }
                 } catch (err) {
-                    // Silent fail
+
                 }
             }
+            
+            hasCheckedEligibility.current = true;
+
         } catch (error) {
             console.error("Error checking eligibility:", error);
+            hasCheckedEligibility.current = true; // Prevent retry on error
         }
-    }, [user, isReviewModalOpen]);
+    }, [user]);
 
-    // --- EFFECT: INITIAL LOAD & INTERVAL (AUTO REFRESH) ---
     useEffect(() => {
-        // 1. Initial Load
         fetchPublicData(false);
-        if (user) checkEligibility();
-
-        const intervalId = setInterval(() => {
-            // Fetch data silently
-            fetchPublicData(true);
-            if (user) checkEligibility();
-        }, 3000); 
-
-        return () => clearInterval(intervalId);
+        if (user) {
+            checkEligibility();
+        }
     }, [fetchPublicData, checkEligibility, user]);
 
 
-    // --- HANDLE SUBMIT ---
+ 
     const handleReviewSubmit = async (payload) => {
         setIsSubmitting(true);
         try {
@@ -166,26 +166,26 @@ const CustomerDashboard = () => {
             };
 
             const response = await api.post('/api/feedbacks', finalPayload);
-            console.log("Review Submitted:", response.data);
 
-            if (payload.rating >= 4) {
-                const newReview = {
-                    id: Date.now(),
-                    name: payload.name,
-                    average: payload.rating,
-                    comment: payload.comment,
-                    date: new Date().toLocaleDateString(),
-                    ratings: payload.ratings
-                };
-                setReviews(prev => [newReview, ...prev]);
-            }
+            const newReview = {
+                id: Date.now(),
+                name: payload.name,
+                average: payload.rating,
+                comment: payload.comment,
+                rawDate: new Date().toISOString(), 
+                date: new Date().toLocaleDateString(),
+                ratings: payload.ratings
+            };
+            
+           
+            setReviews(prev => [newReview, ...prev]);
             
             setIsReviewModalOpen(false);
             setTransactionRef(null); 
             setShowFeedbackSuccess(true);
             setTimeout(() => setShowFeedbackSuccess(false), 3000);
 
-            // Force refresh immediately
+            
             fetchPublicData(true);
 
         } catch (error) {
@@ -214,12 +214,10 @@ const CustomerDashboard = () => {
                 
                 <GallerySection apiUrl={backendUrl} />
                 
-                {/* --- FEEDBACK SECTION --- */}
                 <FeedbackSection 
                     reviews={reviews} 
                     isLoading={isLoadingReviews} 
                     onOpenModal={(ref) => {
-                        console.log("Opening modal manually for ref:", ref);
                         setTransactionRef(ref); 
                         setIsReviewModalOpen(true);
                     }} 

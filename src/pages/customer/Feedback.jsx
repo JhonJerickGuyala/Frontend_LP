@@ -12,6 +12,10 @@ const Feedback = () => {
   // --- STATE MANAGEMENT ---
   const [reviews, setReviews] = useState([]); 
   const [isLoading, setIsLoading] = useState(true);
+  
+  // ADDED: Loading state specifically for eligibility check
+  const [isCheckingEligibility, setIsCheckingEligibility] = useState(true); 
+
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [activeFilter, setActiveFilter] = useState('recent');
@@ -40,7 +44,9 @@ const Feedback = () => {
   const fetchReviews = async () => {
     try {
       setIsLoading(true);
-      const response = await api.get('/api/feedbacks');
+      // Added timestamp to prevent caching
+      const timestamp = new Date().getTime();
+      const response = await api.get(`/api/feedbacks?t=${timestamp}`);
       
       const formattedReviews = response.data.map(review => ({
         id: review.id,
@@ -53,12 +59,14 @@ const Feedback = () => {
         average: review.average,
         comment: review.comment,
         date: new Date(review.date),
-        rawDate: review.date
+        // Use created_at if available for better sorting accuracy
+        rawDate: review.created_at || review.date || new Date().toISOString()
       }));
 
-      const highRatedReviews = formattedReviews.filter(review => review.average >= 4);
-      setReviews(highRatedReviews);
-      setFilteredReviews(highRatedReviews.slice(0, 6)); 
+      formattedReviews.sort((a, b) => new Date(b.rawDate) - new Date(a.rawDate));
+
+      setReviews(formattedReviews);
+      setFilteredReviews(formattedReviews.slice(0, 6)); 
       
     } catch (error) {
       console.error("Error fetching feedbacks:", error);
@@ -69,8 +77,12 @@ const Feedback = () => {
 
   // --- 2. CHECK ELIGIBILITY ---
   const checkEligibility = async () => {
+    // Start loading
+    setIsCheckingEligibility(true);
+
     if (!user || !user.id) {
         setEligibility({ canReview: false, message: "Please login to leave a review.", transactionRef: null });
+        setIsCheckingEligibility(false); // Stop loading
         return;
     }
 
@@ -139,6 +151,9 @@ const Feedback = () => {
     } catch (error) {
         console.error("Eligibility check error:", error);
         setEligibility({ canReview: false, message: "Unable to verify booking status.", transactionRef: null });
+    } finally {
+        // Stop loading regardless of result
+        setIsCheckingEligibility(false);
     }
   };
 
@@ -146,6 +161,9 @@ const Feedback = () => {
     fetchReviews();
     if(user) {
         checkEligibility();
+    } else {
+        // If no user, stop loading immediately
+        setIsCheckingEligibility(false);
     }
   }, [user]);
 
@@ -153,9 +171,16 @@ const Feedback = () => {
   useEffect(() => {
     let filtered = [...reviews];
     switch (activeFilter) {
-      case 'recent': filtered.sort((a, b) => new Date(b.rawDate) - new Date(a.rawDate)); break;
-      case 'highest': filtered.sort((a, b) => parseFloat(b.average) - parseFloat(a.average)); break;
-      case 'featured': filtered.sort((a, b) => (parseFloat(b.average) + (b.comment.length/100)) - (parseFloat(a.average) + (a.comment.length/100))); break;
+      case 'recent': 
+        filtered.sort((a, b) => new Date(b.rawDate) - new Date(a.rawDate)); 
+        break;
+      case 'highest': 
+        filtered.sort((a, b) => parseFloat(b.average) - parseFloat(a.average)); 
+        break;
+      case 'featured': 
+        // Example featured logic: High rating + long comment
+        filtered.sort((a, b) => (parseFloat(b.average) + (b.comment.length/100)) - (parseFloat(a.average) + (a.comment.length/100))); 
+        break;
       default: break;
     }
     setFilteredReviews(filtered.slice(0, 6));
@@ -209,18 +234,19 @@ const Feedback = () => {
       const response = await api.post('/api/feedbacks', payload);
 
       if (response.data.success) {
-        if (parseFloat(avgRating) >= 4) {
-          const newReview = {
-            id: Date.now(),
-            name: payload.name,
-            ratings: formData.ratings,
-            average: avgRating,
-            comment: payload.comment,
-            date: new Date(),
-            rawDate: new Date().toISOString()
-          };
-          setReviews(prev => [newReview, ...prev]);
-        }
+        // Add new review directly to state without filtering for rating
+        const newReview = {
+          id: Date.now(),
+          name: payload.name,
+          ratings: formData.ratings,
+          average: avgRating,
+          comment: payload.comment,
+          date: new Date(),
+          rawDate: new Date().toISOString()
+        };
+        
+        // Add to top
+        setReviews(prev => [newReview, ...prev]);
         
         setFormData({ name: user?.name || '', ratings: { service: 0, cleanliness: 0, amenities: 0 }, comment: '' });
         
@@ -301,7 +327,7 @@ const Feedback = () => {
             </div>
 
             {/* LOWER LEFT: FORM OR LOCKED MESSAGE (Sticky) */}
-            <div className="bg-white shadow-lg border border-gray-100 lg:sticky lg:top-6">
+            <div className="bg-white shadow-lg border border-gray-100 lg:sticky lg:top-6 min-h-[300px]">
               
               {/* HEADER */}
               <div className="bg-[#ea580c] p-5 lg:p-6 text-white">
@@ -310,7 +336,7 @@ const Feedback = () => {
                     <h3 className="font-bold text-xl">Share Your Experience</h3>
                     <p className="text-white/80 text-xs mt-1">We value your feedback</p>
                   </div>
-                  {eligibility.canReview && getCurrentFormAverage() > 0 && (
+                  {!isCheckingEligibility && eligibility.canReview && getCurrentFormAverage() > 0 && (
                     <div className="bg-white text-[#ea580c] px-3 py-1 font-bold text-sm">
                       {getCurrentFormAverage()}<span className="text-xs ml-1">/5</span>
                     </div>
@@ -318,8 +344,13 @@ const Feedback = () => {
                 </div>
               </div>
 
-              {/* --- CONDITION: SHOW FORM OR LOCKED STATE --- */}
-              {eligibility.canReview ? (
+              {/* --- LOGIC: LOADING -> FORM -> LOCKED --- */}
+              {isCheckingEligibility ? (
+                 <div className="p-8 lg:p-10 flex flex-col items-center justify-center text-center h-[300px]">
+                     <Loader2 size={32} className="text-[#ea580c] animate-spin mb-3" />
+                     <p className="text-gray-500 text-sm">Checking your booking details...</p>
+                 </div>
+              ) : eligibility.canReview ? (
                   <div className="p-5 lg:p-6 relative">
                     {showSuccess && (
                       <div className="absolute inset-0 bg-white z-50 flex flex-col items-center justify-center text-center p-6 animate-in fade-in">
@@ -392,7 +423,6 @@ const Feedback = () => {
             </div>
           </div>
 
-          {/* --- COLUMN 2 (RIGHT): REVIEWS (7/12) --- */}
           <div className="lg:col-span-7 space-y-6">
             
             {/* REVIEWS LIST & FILTERS */}

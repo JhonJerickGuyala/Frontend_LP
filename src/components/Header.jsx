@@ -16,6 +16,7 @@ const Header = ({ user, onLogout, activeTab, setActiveTab }) => {
   const navigate = useNavigate();
   const location = useLocation();
 
+  // Safe user extraction
   const role = user?.role ? user.role.toLowerCase() : 'guest';
   const userId = user?.id || user?._id || user?.userId;
 
@@ -43,123 +44,148 @@ const Header = ({ user, onLogout, activeTab, setActiveTab }) => {
   }
 
   const fetchNotifications = async () => {
-    if (!userId || role === 'owner') return;
+   
+    if ((!userId && role !== 'receptionist') || role === 'owner') return;
     
     try {
-      if (!hasInitializedRef.current) setLoadingNotifications(true);
+      if (!hasInitializedRef.current && notifications.length === 0) setLoadingNotifications(true);
 
       let transactions = [];
       
       if (role === 'receptionist') {
-         const response = await api.get('/api/transactions');
+         const response = await api.get(`/api/transactions?_t=${Date.now()}`);
          const data = response.data;
          transactions = Array.isArray(data) ? data : (data.data || data.transactions || []);
       } else {
-         const response = await api.get(`/api/transactions/user/${userId}`);
+
+         const response = await api.get(`/api/transactions/user/${userId}?_t=${Date.now()}`);
          const data = response.data;
          transactions = data.data || data.reservations || [];
       }
 
-      if (transactions.length > 0) {
+      if (Array.isArray(transactions) && transactions.length > 0) {
         const savedStatesKey = `reservation_states_${userId}`;
         const notifsKey = `user_notifications_${userId}`;
         
         let savedStates = JSON.parse(localStorage.getItem(savedStatesKey) || '{}');
         let currentNotifications = JSON.parse(localStorage.getItem(notifsKey) || '[]');
         
+        const isFirstLoad = Object.keys(savedStates).length === 0;
+
         let hasNewUpdates = false;
 
         transactions.forEach(transaction => {
           const transId = transaction.id || transaction.transaction_id;
-          const currentStatus = transaction.booking_status || (transaction.reservations?.[0]?.status) || 'Pending';
+          if (!transId) return;
+
+          const rawStatus = transaction.booking_status || (transaction.reservations?.[0]?.status) || 'Pending';
+          const currentStatus = rawStatus.toString().trim(); 
+          const currentStatusLower = currentStatus.toLowerCase();
+          
           const prevStatus = savedStates[transId];
+          const prevStatusLower = prevStatus ? prevStatus.toLowerCase() : null;
+          
           const ref = transaction.transaction_ref || `TXN-${transId}`;
-          const statusLower = currentStatus.toLowerCase();
 
-          const isStatusChanged = prevStatus && prevStatus !== currentStatus;
-          const isNewBooking = !prevStatus && currentStatus === 'Pending';
+          const isStatusChanged = prevStatus && prevStatusLower !== currentStatusLower;
 
-          if (isStatusChanged || isNewBooking) {
-              let message = '';
-              let type = 'info';
-              let statusLabel = ''; 
-              
-              if (role === 'receptionist') {
-                  if (statusLower === 'pending' && isNewBooking) {
-                      message = `System Alert: New reservation request received.`;
-                      type = 'recep_new_request';
-                      statusLabel = 'NEW REQUEST';
-                  } 
-                  else if (['cancelled', 'rejected', 'declined'].includes(statusLower)) {
-                      message = `Cancellation Alert: Reservation ${ref} has been cancelled.`;
-                      type = 'recep_cancelled';
-                      statusLabel = 'CANCELLED';
-                  }
-                  else if (['confirmed', 'approved'].includes(statusLower)) {
-                      message = `System Log: Reservation confirmed.`;
-                      type = 'recep_log';
-                      statusLabel = 'CONFIRMED';
+          const isNewItem = !prevStatus; 
+
+          let message = '';
+          let type = 'info';
+          let statusLabel = ''; 
+          let shouldNotify = false;
+
+          if (role === 'receptionist') {
+              if (currentStatusLower === 'pending' && isNewItem && !isFirstLoad) {
+                  message = `System Alert: New reservation request received.`;
+                  type = 'recep_new_request';
+                  statusLabel = 'NEW REQUEST';
+                  shouldNotify = true;
+              } 
+              else if (['cancelled', 'rejected', 'declined'].includes(currentStatusLower) && isStatusChanged) {
+                  message = `Cancellation Alert: Reservation ${ref} has been cancelled.`;
+                  type = 'recep_cancelled';
+                  statusLabel = 'CANCELLED';
+                  shouldNotify = true;
+              }
+              else if (['confirmed', 'approved', 'paid'].includes(currentStatusLower) && isStatusChanged) {
+                  message = `System Log: Reservation confirmed.`;
+                  type = 'recep_log';
+                  statusLabel = 'CONFIRMED';
+                  shouldNotify = true;
+              }
+          } 
+          else {
+            
+              if (['confirmed', 'approved', 'paid'].includes(currentStatusLower)) {
+                  if (isStatusChanged || (isNewItem && !isFirstLoad)) {
+                      message = `Approved: Your reservation request has been confirmed.`;
+                      type = 'cust_approved';
+                      statusLabel = 'APPROVED';
+                      shouldNotify = true;
                   }
               } 
-              else {
-                  if (statusLower === 'pending' && isNewBooking) {
-                        message = `Request Sent: Reservation submitted successfully.`;
-                        type = 'cust_pending';
-                        statusLabel = 'PENDING';
-                  } 
-                  else if (['confirmed', 'approved'].includes(statusLower)) {
-                        message = `Approved: Your reservation request has been confirmed.`;
-                        type = 'cust_approved';
-                        statusLabel = 'APPROVED';
-                  } 
-                  else if (['cancelled', 'rejected', 'declined'].includes(statusLower)) {
-                        message = `Cancellation Alert: Reservation ${ref} has been cancelled.`;
-                        type = 'cust_cancelled';
-                        statusLabel = 'CANCELLED';
-                  } 
-                  else if (['completed', 'check-out', 'checked-out'].includes(statusLower)) {
-                        message = `Thank you! Your stay is marked as completed.`;
-                        type = 'cust_completed';
-                        statusLabel = 'COMPLETED';
-                  }
+              else if (['cancelled', 'rejected', 'declined'].includes(currentStatusLower)) {
+                   if (isStatusChanged || (isNewItem && !isFirstLoad)) {
+                      message = `Cancellation Alert: Reservation ${ref} has been cancelled.`;
+                      type = 'cust_cancelled';
+                      statusLabel = 'CANCELLED';
+                      shouldNotify = true;
+                   }
+              } 
+              // COMPLETED
+              else if (['completed', 'check-out', 'checked-out'].includes(currentStatusLower) && isStatusChanged) {
+                  message = `Thank you! Your stay is marked as completed.`;
+                  type = 'cust_completed';
+                  statusLabel = 'COMPLETED';
+                  shouldNotify = true;
               }
-
-              if (message) {
-                const newNotif = {
-                  id: `notif_${transId}_${Date.now()}`,
-                  type: type,
-                  statusLabel: statusLabel,
-                  message: message,
-                  transaction_id: transId,
-                  ref: ref, 
-                  created_at: transaction.updated_at || transaction.created_at || new Date().toISOString(),
-                  isNew: true
-                };
-                
-                currentNotifications.unshift(newNotif);
-                hasNewUpdates = true;
+             
+              else if (currentStatusLower === 'pending' && isNewItem && hasInitializedRef.current) {
+                  message = `Request Sent: Reservation submitted successfully.`;
+                  type = 'cust_pending';
+                  statusLabel = 'PENDING';
+                  shouldNotify = true;
               }
-
-              savedStates[transId] = currentStatus;
-          } else if (!prevStatus) {
-              savedStates[transId] = currentStatus;
           }
+
+          if (shouldNotify && message) {
+            const realTimeNow = new Date().toISOString();
+            
+            // Generate unique ID
+            const newNotif = {
+              id: `notif_${transId}_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+              type: type,
+              statusLabel: statusLabel,
+              message: message,
+              transaction_id: transId,
+              ref: ref, 
+              created_at: realTimeNow, 
+              isNew: true
+            };
+            
+            currentNotifications.unshift(newNotif);
+            hasNewUpdates = true;
+            console.log("🔔 NOTIF ADDED:", message);
+          }
+
+          savedStates[transId] = currentStatus;
         });
 
+        // Save to Storage
         if (hasNewUpdates) {
           if (currentNotifications.length > 50) currentNotifications = currentNotifications.slice(0, 50);
-          localStorage.setItem(savedStatesKey, JSON.stringify(savedStates));
           localStorage.setItem(notifsKey, JSON.stringify(currentNotifications));
           setNotifications(currentNotifications);
-        } else {
-          setNotifications(prev => {
-             if (JSON.stringify(prev) !== JSON.stringify(currentNotifications)) return currentNotifications;
-             return prev;
-          });
         }
+        
+        // Always save status state
+        localStorage.setItem(savedStatesKey, JSON.stringify(savedStates));
       }
       
       hasInitializedRef.current = true;
+
     } catch (error) {
       console.error('Notif Error:', error);
     } finally {
@@ -173,19 +199,20 @@ const Header = ({ user, onLogout, activeTab, setActiveTab }) => {
       const cached = JSON.parse(localStorage.getItem(notifsKey) || '[]');
       if (cached.length) setNotifications(cached);
 
+      hasInitializedRef.current = false;
+
       fetchNotifications(); 
       const interval = setInterval(fetchNotifications, 5000); 
       return () => clearInterval(interval);
     } else {
       setNotifications([]);
     }
-  }, [userId, role]);
+  }, [userId, role]); 
 
   useEffect(() => {
     setUnreadCount(notifications.filter(n => n.isNew).length);
   }, [notifications]);
 
-  // --- HANDLERS ---
   const handleNavigation = (item) => {
     setIsMobileMenuOpen(false);
     if (item.path) navigate(item.path);
@@ -227,11 +254,9 @@ const Header = ({ user, onLogout, activeTab, setActiveTab }) => {
       case 'cust_approved': return { icon: CheckCircle, color: 'text-green-600', bgColor: 'bg-green-50' };
       case 'cust_cancelled': return { icon: XCircle, color: 'text-red-600', bgColor: 'bg-red-50' };
       case 'cust_completed': return { icon: Calendar, color: 'text-purple-600', bgColor: 'bg-purple-50' };
-      
       case 'recep_new_request': return { icon: ClipboardList, color: 'text-orange-600', bgColor: 'bg-orange-50' };
       case 'recep_cancelled': return { icon: ShieldAlert, color: 'text-red-600', bgColor: 'bg-red-50' };
       case 'recep_log': return { icon: FileText, color: 'text-gray-600', bgColor: 'bg-gray-50' };
-      
       default: return { icon: AlertCircle, color: 'text-gray-500', bgColor: 'bg-gray-50' };
     }
   };
@@ -254,7 +279,7 @@ const Header = ({ user, onLogout, activeTab, setActiveTab }) => {
       const date = new Date(dateString);
       const now = new Date();
       const diffInSeconds = Math.floor((now - date) / 1000);
-      if (diffInSeconds < 60) return 'just now';
+      if (diffInSeconds < 60) return 'Just now';
       if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`;
       if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`;
       return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
@@ -454,6 +479,11 @@ const Header = ({ user, onLogout, activeTab, setActiveTab }) => {
         {/* Mobile Menu */}
         {isMobileMenuOpen && (
            <div className="lg:hidden absolute top-full left-0 w-full bg-white border-t border-gray-100 shadow-lg z-40 p-2 flex flex-col gap-1">
+              
+              <div className="px-4 py-3 border-b border-gray-100 mb-1">
+                <p className="text-sm font-semibold text-gray-800">Hello, {user?.username || 'User'}!</p>
+              </div>
+
               {navItems.map((item) => (
                 <button key={item.label} onClick={() => handleNavigation(item)} className="px-4 py-3 text-left text-sm font-normal rounded-md transition-colors hover:bg-gray-50 text-gray-700">
                   {item.label}
