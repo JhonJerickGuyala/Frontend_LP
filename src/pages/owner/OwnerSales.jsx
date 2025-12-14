@@ -257,7 +257,7 @@ const OwnerAnalytics = () => {
             </div>
         </div>
 
-        {/* TRANSACTION TABLE  */}
+        {/* TRANSACTION TABLE - WITH SCROLL FIX */}
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col h-[600px]">
             <div className="p-4 sm:p-6 border-b border-slate-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-slate-50/50 shrink-0">
                 <h3 className="font-bold text-slate-800 flex items-center gap-2"><Filter size={18} className="text-orange-500"/> Transaction History</h3>
@@ -414,11 +414,13 @@ const OwnerAnalytics = () => {
   );
 };
 
+// --- UPDATED STATCARD COMPONENT WITH COMMA FORMATTING ---
 const StatCard = ({ title, value, trendValue, periodLabel, isPositive, color, bg, icon: Icon, isMoney = true, hasData = true }) => (
    <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-all duration-300 group h-full flex flex-col justify-between relative overflow-hidden">
       <div className="flex justify-between items-start mb-2 relative z-10"><div className={`p-3 rounded-xl transition-colors ${bg} ${color}`}><Icon size={24} strokeWidth={2} /></div></div>
       <div className="relative z-10 mt-2">
          <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">{title}</p>
+         {/* FIX: Force Number() parsing to ensure toLocaleString() adds commas properly */}
          <h4 className="text-2xl md:text-3xl font-bold text-slate-800 tracking-tight mt-1">
             {isMoney ? '₱' : ''}
             {Number(value).toLocaleString(undefined, {
