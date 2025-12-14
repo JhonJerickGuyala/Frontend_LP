@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { 
   X, CheckCircle, AlertCircle, RefreshCw, User, 
   FileText, ZoomIn, ZoomOut, Clock, Layers, RotateCcw, Maximize,
-  Plus, CreditCard, LogIn, Ban, LogOut, Eye, HelpCircle, ChevronRight, Users, Calendar, Minus, Check
+  Plus, CreditCard, LogIn, Ban, LogOut, Eye, HelpCircle, ChevronRight, Users, Calendar, Minus, Check, AlertTriangle
 } from 'lucide-react';
 
 const backendUrl = import.meta.env.VITE_API_URL || 'http://localhost:7777';
@@ -14,7 +14,7 @@ const getImageUrl = (imagePath) => {
 };
 
 // ==========================================
-// 1. MOBILE WALKIN MODAL (Main View) - z-[1000]
+// 1. MOBILE WALKIN MODAL (Fixed Body Scroll)
 // ==========================================
 export const MobileWalkinModal = ({ transaction, isOpen, onClose, onViewProof, onViewDetails, onStatusUpdate, onExtendBooking, loading }) => {
   if (!isOpen || !transaction) return null;
@@ -56,171 +56,173 @@ export const MobileWalkinModal = ({ transaction, isOpen, onClose, onViewProof, o
   const amenities = getAmenitySummary(transaction);
 
   return (
-    <div className="fixed inset-0 z-[1000] overflow-y-auto">
+    // UPDATED: Removed overflow-y-auto from here, used flex to center
+    <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4">
       <div className="fixed inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative min-h-screen flex items-start justify-center p-4 pt-20">
-        <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden flex flex-col animate-slideIn">
-          
-          {/* Header */}
-          <div className="sticky top-0 bg-gradient-to-r from-orange-600 to-amber-600 px-6 py-4 border-b border-white/10 rounded-t-2xl flex items-center justify-between text-white z-10">
-            <div>
-              <h3 className="text-lg font-bold flex items-center gap-2"><FileText size={20}/> Walk-In Details</h3>
-              <p className="text-xs text-orange-100 font-mono mt-0.5">{transaction.transaction_ref}</p>
+      
+      {/* UPDATED: Added max-h-[90vh] and flex-col to make internal scroll work */}
+      <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden flex flex-col animate-slideIn max-h-[90vh]">
+        
+        {/* Header - Removed Sticky, Added shrink-0 */}
+        <div className="bg-gradient-to-r from-orange-600 to-amber-600 px-6 py-4 border-b border-white/10 flex items-center justify-between text-white z-10 shrink-0">
+          <div>
+            <h3 className="text-lg font-bold flex items-center gap-2"><FileText size={20}/> Walk-In Details</h3>
+            <p className="text-xs text-orange-100 font-mono mt-0.5">{transaction.transaction_ref}</p>
+          </div>
+          <button onClick={onClose} disabled={loading} className="p-2 bg-white/20 hover:bg-white/30 rounded-full transition-colors text-white disabled:opacity-50">
+            <X size={20} />
+          </button>
+        </div>
+
+        {/* Body - Added overflow-y-auto and flex-1 */}
+        <div className="px-6 py-6 space-y-5 bg-gray-50/50 overflow-y-auto flex-1 custom-scrollbar">
+          {/* Customer Info */}
+          <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
+            <div className="flex items-start gap-3">
+              <div className="bg-orange-50 p-2.5 rounded-full border border-orange-100">
+                <User size={20} className="text-orange-600" />
+              </div>
+              <div>
+                <h4 className="font-bold text-gray-800 text-lg">{transaction.customer_name}</h4>
+                <div className="flex items-center gap-2 mt-1">
+                  <span className="text-sm text-gray-600 font-medium">{transaction.contact_number}</span>
+                </div>
+              </div>
             </div>
-            <button onClick={onClose} disabled={loading} className="p-2 bg-white/20 hover:bg-white/30 rounded-full transition-colors text-white disabled:opacity-50">
-              <X size={20} />
-            </button>
           </div>
 
-          <div className="px-6 py-6 space-y-5 bg-gray-50/50">
-            {/* Customer Info */}
-            <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
-              <div className="flex items-start gap-3">
-                <div className="bg-orange-50 p-2.5 rounded-full border border-orange-100">
-                  <User size={20} className="text-orange-600" />
-                </div>
+          {/* Schedule */}
+          <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
+            <div className="flex items-center gap-2 mb-3 pb-2 border-b border-gray-100">
+              <Calendar size={16} className="text-gray-500" />
+              <h4 className="font-bold text-gray-700 text-sm uppercase tracking-wide">Schedule</h4>
+            </div>
+            <div className="space-y-3">
+              <div className="flex justify-between items-center">
                 <div>
-                  <h4 className="font-bold text-gray-800 text-lg">{transaction.customer_name}</h4>
-                  <div className="flex items-center gap-2 mt-1">
-                    <span className="text-sm text-gray-600 font-medium">{transaction.contact_number}</span>
-                  </div>
+                  <p className="text-xs text-gray-500 mb-1">Check In</p>
+                  <p className="font-bold text-green-600 text-sm bg-green-50 px-2 py-1 rounded border border-green-100 inline-block">{inDT.date} • {inDT.time}</p>
+                </div>
+                <ChevronRight size={20} className="text-gray-300" />
+                <div className="text-right">
+                  <p className="text-xs text-gray-500 mb-1">Check Out</p>
+                  <p className={`font-bold text-sm px-2 py-1 rounded border inline-block ${isExtended ? 'text-purple-600 bg-purple-50 border-purple-100' : 'text-orange-600 bg-orange-50 border-orange-100'}`}>
+                    {outDT.date} • {outDT.time}
+                  </p>
                 </div>
               </div>
             </div>
+          </div>
 
-            {/* Schedule */}
-            <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
-              <div className="flex items-center gap-2 mb-3 pb-2 border-b border-gray-100">
-                <Calendar size={16} className="text-gray-500" />
-                <h4 className="font-bold text-gray-700 text-sm uppercase tracking-wide">Schedule</h4>
-              </div>
-              <div className="space-y-3">
-                <div className="flex justify-between items-center">
-                  <div>
-                    <p className="text-xs text-gray-500 mb-1">Check In</p>
-                    <p className="font-bold text-green-600 text-sm bg-green-50 px-2 py-1 rounded border border-green-100 inline-block">{inDT.date} • {inDT.time}</p>
-                  </div>
-                  <ChevronRight size={20} className="text-gray-300" />
-                  <div className="text-right">
-                    <p className="text-xs text-gray-500 mb-1">Check Out</p>
-                    <p className={`font-bold text-sm px-2 py-1 rounded border inline-block ${isExtended ? 'text-purple-600 bg-purple-50 border-purple-100' : 'text-orange-600 bg-orange-50 border-orange-100'}`}>
-                      {outDT.date} • {outDT.time}
-                    </p>
-                  </div>
-                </div>
-              </div>
+          {/* Amenities */}
+          <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
+            <div className="flex items-center justify-between mb-2">
+              <h4 className="font-bold text-gray-700 text-sm uppercase tracking-wide flex items-center gap-2"><Layers size={14}/> Amenities</h4>
+              <button onClick={() => onViewDetails(transaction, 'amenities')} className="text-orange-600 text-xs font-bold hover:text-orange-800 flex items-center gap-1 bg-orange-50 px-2 py-1 rounded-full transition-colors">
+                View <ChevronRight size={12} />
+              </button>
             </div>
+            <p className="text-sm text-gray-600 leading-relaxed font-medium">{amenities}</p>
+          </div>
 
-            {/* Amenities */}
-            <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
+          {/* Extensions */}
+          {isExtended && (
+            <div className="bg-purple-50 border border-purple-200 rounded-xl p-4 shadow-sm">
               <div className="flex items-center justify-between mb-2">
-                <h4 className="font-bold text-gray-700 text-sm uppercase tracking-wide flex items-center gap-2"><Layers size={14}/> Amenities</h4>
-                <button onClick={() => onViewDetails(transaction, 'amenities')} className="text-orange-600 text-xs font-bold hover:text-orange-800 flex items-center gap-1 bg-orange-50 px-2 py-1 rounded-full transition-colors">
-                  View <ChevronRight size={12} />
-                </button>
-              </div>
-              <p className="text-sm text-gray-600 leading-relaxed font-medium">{amenities}</p>
-            </div>
-
-            {/* Extensions */}
-            {isExtended && (
-              <div className="bg-purple-50 border border-purple-200 rounded-xl p-4 shadow-sm">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <div className="bg-white p-1 rounded text-purple-600"><Plus size={14} /></div>
-                    <h4 className="font-bold text-purple-800 text-sm uppercase tracking-wide">Extensions</h4>
-                  </div>
-                  <button onClick={() => onViewDetails(transaction, 'extensions')} className="text-purple-700 text-xs font-bold hover:text-purple-900 flex items-center gap-1 bg-white/50 px-2 py-1 rounded-full transition-colors">
-                    Details <ChevronRight size={12} />
-                  </button>
-                </div>
-                <p className="text-sm text-purple-700 font-medium">
-                  {extInfo.count} extension(s) added • Additional: <span className="font-bold">₱{extInfo.cost.toLocaleString()}</span>
-                </p>
-              </div>
-            )}
-
-            {/* Payment */}
-            <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
-              <div className="flex items-center justify-between mb-3 pb-2 border-b border-gray-100">
                 <div className="flex items-center gap-2">
-                  <CreditCard size={16} className="text-gray-500" />
-                  <h4 className="font-bold text-gray-700 text-sm uppercase tracking-wide">Payment</h4>
+                  <div className="bg-white p-1 rounded text-purple-600"><Plus size={14} /></div>
+                  <h4 className="font-bold text-purple-800 text-sm uppercase tracking-wide">Extensions</h4>
                 </div>
-                <button 
-                  onClick={() => onViewDetails(transaction, 'payment')} 
-                  className="text-orange-600 text-xs font-bold hover:text-orange-800 flex items-center gap-1 bg-orange-50 px-2 py-1 rounded-full transition-colors"
-                >
-                  Breakdown <ChevronRight size={12} />
+                <button onClick={() => onViewDetails(transaction, 'extensions')} className="text-purple-700 text-xs font-bold hover:text-purple-900 flex items-center gap-1 bg-white/50 px-2 py-1 rounded-full transition-colors">
+                  Details <ChevronRight size={12} />
                 </button>
               </div>
+              <p className="text-sm text-purple-700 font-medium">
+                {extInfo.count} extension(s) added • Additional: <span className="font-bold">₱{extInfo.cost.toLocaleString()}</span>
+              </p>
+            </div>
+          )}
 
-              <div className="space-y-2">
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-600 text-sm">Status</span>
-                  <span className="font-bold text-xs px-2 py-1 rounded border uppercase tracking-wider bg-green-100 text-green-700 border-green-200">
-                    {paymentLabel}
-                  </span>
-                </div>
-                <div className="flex justify-between pt-2 border-t border-dashed border-gray-200 mt-2">
-                  <span className="font-bold text-gray-700">Total Paid</span>
-                  <span className="font-extrabold text-xl text-green-600">
-                    ₱{parseFloat(transaction.total_amount).toLocaleString()}
-                  </span>
-                </div>
+          {/* Payment */}
+          <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
+            <div className="flex items-center justify-between mb-3 pb-2 border-b border-gray-100">
+              <div className="flex items-center gap-2">
+                <CreditCard size={16} className="text-gray-500" />
+                <h4 className="font-bold text-gray-700 text-sm uppercase tracking-wide">Payment</h4>
               </div>
+              <button 
+                onClick={() => onViewDetails(transaction, 'payment')} 
+                className="text-orange-600 text-xs font-bold hover:text-orange-800 flex items-center gap-1 bg-orange-50 px-2 py-1 rounded-full transition-colors"
+              >
+                Breakdown <ChevronRight size={12} />
+              </button>
             </div>
 
-            {/* Status Badge */}
-            <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm flex justify-between items-center">
-                <div>
-                  <p className="text-[10px] text-gray-400 uppercase tracking-wider font-bold mb-1">Booking Status</p>
-                  <span className={`px-3 py-1 rounded-full text-xs font-bold border ${
-                    transaction.booking_status === 'Checked-In' ? 'bg-purple-100 text-purple-700 border-purple-200' :
-                    transaction.booking_status === 'Completed' ? 'bg-gray-100 text-gray-600 border-gray-200' :
-                    transaction.booking_status === 'Confirmed' ? 'bg-green-100 text-green-700 border-green-200' :
-                    transaction.booking_status === 'Pending' ? 'bg-yellow-100 text-yellow-700 border-yellow-200' :
-                    'bg-red-100 text-red-600 border-red-200'
-                  }`}>
-                    {transaction.booking_status}
-                  </span>
-                </div>
-                {transaction.proof_of_payment && (
-                  <button onClick={() => onViewProof(transaction)} className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-orange-50 to-amber-50 text-orange-700 border border-orange-200 rounded-lg hover:shadow-md transition-all active:scale-95">
-                    <Eye size={16} />
-                    <span className="text-xs font-bold uppercase tracking-wide">See Proof</span>
-                  </button>
-                )}
+            <div className="space-y-2">
+              <div className="flex justify-between items-center">
+                <span className="text-gray-600 text-sm">Status</span>
+                <span className="font-bold text-xs px-2 py-1 rounded border uppercase tracking-wider bg-green-100 text-green-700 border-green-200">
+                  {paymentLabel}
+                </span>
+              </div>
+              <div className="flex justify-between pt-2 border-t border-dashed border-gray-200 mt-2">
+                <span className="font-bold text-gray-700">Total Paid</span>
+                <span className="font-extrabold text-xl text-green-600">
+                  ₱{parseFloat(transaction.total_amount).toLocaleString()}
+                </span>
+              </div>
             </div>
           </div>
 
-          {/* ACTION BUTTONS */}
-          <div className="sticky bottom-0 bg-white border-t border-gray-200 px-6 py-4 pb-6 rounded-b-2xl shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
-            <div className="flex flex-wrap gap-3">
-              {transaction.booking_status === 'Confirmed' ? (
-                <>
-                  <button onClick={() => onStatusUpdate(transaction.id, 'Checked-In')} disabled={loading} className="flex-1 px-4 py-3 bg-gradient-to-r from-orange-600 to-amber-600 text-white rounded-xl font-bold hover:shadow-lg transition-all active:scale-95 flex items-center justify-center gap-2 shadow-orange-200 disabled:opacity-50">
-                    <LogIn size={18} /> Check In
-                  </button>
-                  <button onClick={() => onStatusUpdate(transaction.id, 'Cancelled')} disabled={loading} className="px-4 py-3 bg-white border border-gray-300 text-gray-700 rounded-xl font-bold hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-all flex items-center justify-center gap-2 disabled:opacity-50">
-                    <Ban size={18} />
-                  </button>
-                </>
-              ) : transaction.booking_status === 'Checked-In' ? (
-                <>
-                  <button onClick={() => onExtendBooking(transaction)} disabled={loading} className="flex-1 px-4 py-3 bg-purple-600 text-white rounded-xl font-bold hover:bg-purple-700 hover:shadow-lg shadow-purple-200 transition-all active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50">
-                    <Clock size={18} /> Extend
-                  </button>
-                  <button onClick={() => onStatusUpdate(transaction.id, 'Completed')} disabled={loading} className="flex-1 px-4 py-3 bg-orange-500 text-white rounded-xl font-bold hover:bg-orange-600 hover:shadow-lg shadow-orange-200 transition-all active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50">
-                    <LogOut size={18} /> Check Out
-                  </button>
-                </>
-              ) : (
-                <button onClick={onClose} disabled={loading} className="flex-1 px-4 py-3 bg-gray-100 text-gray-600 border border-gray-300 rounded-xl font-bold hover:bg-gray-200 transition-colors disabled:opacity-50">
-                  Close
+          {/* Status Badge */}
+          <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm flex justify-between items-center">
+              <div>
+                <p className="text-[10px] text-gray-400 uppercase tracking-wider font-bold mb-1">Booking Status</p>
+                <span className={`px-3 py-1 rounded-full text-xs font-bold border ${
+                  transaction.booking_status === 'Checked-In' ? 'bg-purple-100 text-purple-700 border-purple-200' :
+                  transaction.booking_status === 'Completed' ? 'bg-gray-100 text-gray-600 border-gray-200' :
+                  transaction.booking_status === 'Confirmed' ? 'bg-green-100 text-green-700 border-green-200' :
+                  transaction.booking_status === 'Pending' ? 'bg-yellow-100 text-yellow-700 border-yellow-200' :
+                  'bg-red-100 text-red-600 border-red-200'
+                }`}>
+                  {transaction.booking_status}
+                </span>
+              </div>
+              {transaction.proof_of_payment && (
+                <button onClick={() => onViewProof(transaction)} className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-orange-50 to-amber-50 text-orange-700 border border-orange-200 rounded-lg hover:shadow-md transition-all active:scale-95">
+                  <Eye size={16} />
+                  <span className="text-xs font-bold uppercase tracking-wide">See Proof</span>
                 </button>
               )}
-            </div>
+          </div>
+        </div>
+
+        {/* ACTION BUTTONS - Removed Sticky, Added shrink-0 */}
+        <div className="bg-white border-t border-gray-200 px-6 py-4 pb-6 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] shrink-0">
+          <div className="flex flex-wrap gap-3">
+            {transaction.booking_status === 'Confirmed' ? (
+              <>
+                <button onClick={() => onStatusUpdate(transaction.id, 'Checked-In')} disabled={loading} className="flex-1 px-4 py-3 bg-gradient-to-r from-orange-600 to-amber-600 text-white rounded-xl font-bold hover:shadow-lg transition-all active:scale-95 flex items-center justify-center gap-2 shadow-orange-200 disabled:opacity-50">
+                  <LogIn size={18} /> Check In
+                </button>
+                <button onClick={() => onStatusUpdate(transaction.id, 'Cancelled')} disabled={loading} className="px-4 py-3 bg-white border border-gray-300 text-gray-700 rounded-xl font-bold hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-all flex items-center justify-center gap-2 disabled:opacity-50">
+                  <Ban size={18} />
+                </button>
+              </>
+            ) : transaction.booking_status === 'Checked-In' ? (
+              <>
+                <button onClick={() => onExtendBooking(transaction)} disabled={loading} className="flex-1 px-4 py-3 bg-purple-600 text-white rounded-xl font-bold hover:bg-purple-700 hover:shadow-lg shadow-purple-200 transition-all active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50">
+                  <Clock size={18} /> Extend
+                </button>
+                <button onClick={() => onStatusUpdate(transaction.id, 'Completed')} disabled={loading} className="flex-1 px-4 py-3 bg-orange-500 text-white rounded-xl font-bold hover:bg-orange-600 hover:shadow-lg shadow-orange-200 transition-all active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50">
+                  <LogOut size={18} /> Check Out
+                </button>
+              </>
+            ) : (
+              <button onClick={onClose} disabled={loading} className="flex-1 px-4 py-3 bg-gray-100 text-gray-600 border border-gray-300 rounded-xl font-bold hover:bg-gray-200 transition-colors disabled:opacity-50">
+                Close
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -229,7 +231,7 @@ export const MobileWalkinModal = ({ transaction, isOpen, onClose, onViewProof, o
 };
 
 // ==========================================
-// 2. ACTION MODAL - z-[2100] (UPDATED)
+// 2. ACTION MODAL - z-[2100]
 // ==========================================
 export const ActionModal = ({ isOpen, type, transaction, onClose, onConfirm, loading }) => {
   if (!isOpen || !transaction) return null;
@@ -284,7 +286,7 @@ export const ActionModal = ({ isOpen, type, transaction, onClose, onConfirm, loa
 };
 
 // ==========================================
-// 3. PROOF MODAL - z-[2100] (UPDATED)
+// 3. PROOF MODAL - z-[2100]
 // ==========================================
 export const ProofModal = ({ isOpen, transaction, onClose, imageErrors, onRetryLoad, onError }) => {
   const [scale, setScale] = useState(1);
@@ -347,7 +349,7 @@ export const ProofModal = ({ isOpen, transaction, onClose, imageErrors, onRetryL
 };
 
 // ==========================================
-// 4. CHECK-IN MODAL - z-[2100] (UPDATED)
+// 4. CHECK-IN MODAL - z-[2100]
 // ==========================================
 export const CheckInModal = ({ isOpen, transaction, onClose, onConfirm, loading }) => {
   if (!isOpen || !transaction) return null;
@@ -384,7 +386,7 @@ export const CheckInModal = ({ isOpen, transaction, onClose, onConfirm, loading 
 };
 
 // ==========================================
-// 5. DETAIL MODAL - z-[2100] (UPDATED - ITO YUNG HINAHANAP MO)
+// 5. DETAIL MODAL - z-[2100]
 // ==========================================
 export const DetailModal = ({ isOpen, transaction, onClose, viewType }) => {
   if (!isOpen || !transaction) return null;
@@ -443,7 +445,7 @@ export const DetailModal = ({ isOpen, transaction, onClose, viewType }) => {
             <div className="flex justify-between items-center mt-1">
                <p className="text-xs text-gray-400 uppercase tracking-wider font-semibold">REF: {transaction.transaction_ref}</p>
                <span className="px-2 py-0.5 rounded text-[10px] font-bold border bg-green-50 text-green-700 border-green-200">
-                  Fully Paid
+                 Fully Paid
                </span>
             </div>
           </div>
@@ -498,7 +500,7 @@ export const DetailModal = ({ isOpen, transaction, onClose, viewType }) => {
 
           {isPaymentView && (
              <div className="space-y-6">
-                
+               
                 <div className="grid grid-cols-2 gap-3">
                    <div className="p-3 bg-blue-50 rounded-xl border border-blue-100">
                       <p className="text-xs text-blue-600 font-bold uppercase mb-1">Total Contract</p>
@@ -557,7 +559,7 @@ export const DetailModal = ({ isOpen, transaction, onClose, viewType }) => {
 };
 
 // ==========================================
-// 6. EXTEND MODAL - z-[2100] (UPDATED)
+// 6. EXTEND MODAL - z-[2100]
 // ==========================================
 export const ExtendModal = ({ isOpen, transaction, onClose, onExtend, loading }) => {
   const [extendHours, setExtendHours] = useState(1);
@@ -671,6 +673,106 @@ export const ExtendModal = ({ isOpen, transaction, onClose, onExtend, loading })
           </button>
         </div>
 
+      </div>
+    </div>
+  );
+};
+
+// ==========================================
+// 7. NEW BOOKING CONFIRMATION MODAL - z-[3000]
+// ==========================================
+export const WalkInConfirmationModal = ({ isOpen, onClose, onConfirm, formData, cart, total, loading }) => {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-[3000] overflow-y-auto min-h-screen min-w-screen flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fadeIn">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-scaleUp">
+        
+        <div className="bg-gradient-to-r from-orange-600 to-amber-600 p-4 flex justify-between items-center text-white">
+          <h3 className="font-bold text-lg flex items-center gap-2">
+            <AlertTriangle className="text-white/90" size={24} /> Confirm Booking
+          </h3>
+          <button onClick={onClose} className="hover:bg-white/20 p-1 rounded-full transition-colors">
+            <X size={20} />
+          </button>
+        </div>
+        
+        <div className="p-6 space-y-4">
+          <div className="bg-orange-50 p-4 rounded-xl border border-orange-100">
+            <p className="text-xs text-orange-600 font-bold uppercase tracking-wider mb-1">Guest Name</p>
+            <p className="font-bold text-gray-900 text-xl">{formData.fullName || 'Walk-in Guest'}</p>
+          </div>
+          
+          <div className="space-y-3 bg-gray-50 p-4 rounded-xl border border-gray-100">
+            <div className="flex justify-between text-sm">
+              <span className="text-gray-500 font-medium">Items in Cart</span>
+              <span className="font-bold text-gray-900">{cart.length} items</span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-gray-500 font-medium">Guest Count</span>
+              <span className="font-bold text-gray-900">{formData.numGuest || 0} pax</span>
+            </div>
+            <div className="border-t border-gray-200 my-2"></div>
+            <div className="flex justify-between text-lg items-center">
+              <span className="text-gray-900 font-bold">Total Amount</span>
+              <span className="text-orange-600 font-extrabold text-xl">₱{total.toLocaleString()}</span>
+            </div>
+          </div>
+
+          <div className="flex gap-3 pt-2">
+            <button 
+              onClick={onClose}
+              disabled={loading}
+              className="flex-1 px-4 py-3.5 rounded-xl border border-gray-200 text-gray-600 font-bold hover:bg-gray-50 transition-colors"
+            >
+              Cancel
+            </button>
+            <button 
+              onClick={onConfirm}
+              disabled={loading}
+              className="flex-1 px-4 py-3.5 rounded-xl bg-gradient-to-r from-orange-600 to-amber-600 text-white font-bold hover:shadow-lg hover:shadow-orange-200 transition-all active:scale-95 disabled:opacity-70 flex justify-center items-center gap-2"
+            >
+              {loading ? (
+                <>Processing...</>
+              ) : (
+                <>Confirm & Pay <CheckCircle size={18}/></>
+              )}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ==========================================
+// 8. NEW BOOKING SUCCESS MODAL - z-[3000]
+// ==========================================
+export const WalkInSuccessModal = ({ isOpen, onClose, transactionRef }) => {
+  if (!isOpen) return null;
+
+  return (
+    <div className=" overflow-y-auto min-h-screen min-w-screen fixed inset-0 z-[3000] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fadeIn">
+      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm text-center p-8 animate-scaleUp relative overflow-hidden">
+        
+        <div className="w-20 h-20 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-6 shadow-sm border-4 border-white shadow-green-100">
+          <CheckCircle size={40} strokeWidth={3} />
+        </div>
+        
+        <h2 className="text-2xl font-bold text-gray-900 mb-2">Booking Successful!</h2>
+        <p className="text-gray-500 mb-8 font-medium">Transaction complete.</p>
+        
+        <div className="bg-gray-50 p-4 rounded-2xl border border-dashed border-gray-300 mb-8">
+          <p className="text-[10px] text-gray-400 uppercase tracking-widest font-bold mb-1">Transaction Reference</p>
+          <p className="font-mono text-2xl font-bold text-gray-800 tracking-tight">{transactionRef || '---'}</p>
+        </div>
+
+        <button 
+          onClick={onClose}
+          className="w-full px-6 py-4 rounded-xl bg-gray-900 text-white font-bold hover:bg-gray-800 transition-all hover:shadow-lg active:scale-95 flex items-center justify-center gap-2"
+        >
+          Close & Create New
+        </button>
       </div>
     </div>
   );

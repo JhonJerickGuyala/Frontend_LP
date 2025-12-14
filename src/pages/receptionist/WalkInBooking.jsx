@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import api from '../../config/axios';
 import { CheckCircle, AlertCircle, X } from 'lucide-react';
 
-
+// ✅ CORRECT IMPORTS: Using named exports directly from WalkInModal.jsx
 import { 
   WalkInConfirmationModal, 
   WalkInSuccessModal 
@@ -149,7 +149,8 @@ const WalkInBooking = () => {
   return (
     <div className="space-y-6 max-w-9xl mx-auto pb-12 relative">
         {toast && <ToastNotification message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
-
+        
+        {/* ✅ CORRECT MODAL USAGE: Individual Named Components */}
         <WalkInConfirmationModal 
             isOpen={showConfirmModal}
             onClose={() => setShowConfirmModal(false)}
