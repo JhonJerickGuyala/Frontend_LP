@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   X, CheckCircle, AlertCircle, RefreshCw, User, 
   FileText, ZoomIn, ZoomOut, Clock, Layers, RotateCcw, Maximize,
@@ -27,10 +27,24 @@ const calculateDuration = (startDate, endDate) => {
     return diffDays > 0 ? diffDays : 1;
 };
 
+// --- FIX: SCROLL LOCK HOOK ---
+// Para hindi gumalaw ang background body pag open ang modal
+const useBodyScrollLock = (isOpen) => {
+    useEffect(() => {
+        if (isOpen) {
+            document.body.style.overflow = 'hidden';
+        } else {
+            document.body.style.overflow = 'unset';
+        }
+        return () => { document.body.style.overflow = 'unset'; };
+    }, [isOpen]);
+};
+
 // ==========================================
 // 1. WALK-IN DETAILS MODAL (View Details)
 // ==========================================
 export const WalkInModal = ({ transaction, isOpen, onClose, onViewProof, onViewDetails, onStatusUpdate, onExtendBooking, loading }) => {
+  useBodyScrollLock(isOpen);
   if (!isOpen || !transaction) return null;
 
   const formatDateTime = (dateStr) => {
@@ -63,27 +77,21 @@ export const WalkInModal = ({ transaction, isOpen, onClose, onViewProof, onViewD
   const sched = transaction.reservations?.[0];
   const inDT = formatDateTime(sched?.check_in_date);
   const outDT = formatDateTime(sched?.check_out_date);
-  
-  // FIXED: Duration Calculation
   const duration = calculateDuration(sched?.check_in_date, sched?.check_out_date);
-
   const extInfo = getExtensionSummary(transaction);
   const isExtended = extInfo.cost > 0;
-  
-  // FIXED: Walk-in is ALWAYS Fully Paid automatically
   const paymentLabel = 'Fully Paid'; 
-  
   const amenities = getAmenitySummary(transaction);
 
   return (
-    // FIXED: Z-index adjusted and fixed inset used for full coverage
+    // FIX: Wrapper with z-index and flex center
     <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4">
-      {/* FIXED: Backdrop with blur covers entire screen */}
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-md" onClick={onClose} />
+      {/* FIX: Backdrop covers entire viewport */}
+      <div className="fixed inset-0 bg-black/60 backdrop-blur-md" onClick={onClose} />
       
       <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col animate-slideIn max-h-[90vh]">
         
-        {/* UPDATED: Orange Header */}
+        {/* Header */}
         <div className="shrink-0 bg-[#F97316] px-6 py-4 border-b border-orange-600 flex items-center justify-between text-white shadow-md z-10">
             <div>
               <h3 className="text-lg font-bold flex items-center gap-2">
@@ -96,6 +104,7 @@ export const WalkInModal = ({ transaction, isOpen, onClose, onViewProof, onViewD
             </button>
         </div>
 
+        {/* Scrollable Body */}
         <div className="flex-1 overflow-y-auto px-6 py-6 space-y-5 bg-gray-50/50 custom-scrollbar">
             {/* Customer Info */}
             <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
@@ -119,7 +128,6 @@ export const WalkInModal = ({ transaction, isOpen, onClose, onViewProof, onViewD
                     <Calendar size={16} className="text-gray-500" />
                     <h4 className="font-bold text-gray-700 text-sm uppercase tracking-wide">Schedule</h4>
                 </div>
-                {/* Duration Badge */}
                 <div className="bg-orange-50 border border-orange-100 text-orange-600 px-2 py-1 rounded text-xs font-bold flex items-center gap-1">
                     <Clock size={12}/> {duration} Night{duration > 1 ? 's' : ''}
                 </div>
@@ -170,7 +178,7 @@ export const WalkInModal = ({ transaction, isOpen, onClose, onViewProof, onViewD
               </div>
             )}
 
-            {/* Payment - AUTOMATIC FULLY PAID FOR WALKIN */}
+            {/* Payment */}
             <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
               <div className="flex items-center justify-between mb-3 pb-2 border-b border-gray-100">
                 <div className="flex items-center gap-2">
@@ -201,7 +209,7 @@ export const WalkInModal = ({ transaction, isOpen, onClose, onViewProof, onViewD
               </div>
             </div>
 
-            {/* Booking Status Badge (Confirmed/Checked-In etc) */}
+            {/* Booking Status Badge */}
             <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm flex justify-between items-center">
                 <div>
                   <p className="text-[10px] text-gray-400 uppercase tracking-wider font-bold mb-1">Booking Status</p>
@@ -224,6 +232,7 @@ export const WalkInModal = ({ transaction, isOpen, onClose, onViewProof, onViewD
             </div>
         </div>
 
+        {/* Footer Actions */}
         <div className="shrink-0 bg-white border-t border-gray-200 px-6 py-4 rounded-b-2xl shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
             <div className="flex flex-wrap gap-3">
               {transaction.booking_status === 'Confirmed' ? (
@@ -260,6 +269,7 @@ export const WalkInModal = ({ transaction, isOpen, onClose, onViewProof, onViewD
 // 2. ACTION MODAL
 // ==========================================
 export const ActionModal = ({ isOpen, type, transaction, onClose, onConfirm, loading }) => {
+  useBodyScrollLock(isOpen);
   if (!isOpen || !transaction) return null;
   const isConfirm = type === 'Confirmed';
   const isCancel = type === 'Cancelled';
@@ -271,8 +281,9 @@ export const ActionModal = ({ isOpen, type, transaction, onClose, onConfirm, loa
   else if (isComplete) { title = 'Check Out Guest?'; message = `Complete booking for ${transaction.customer_name}? Ensure all keys are returned.`; colorClass = 'bg-orange-600'; Icon = LogOut; iconBg = 'bg-orange-100 text-orange-600'; }
 
   return (
-    <div className="fixed inset-0 z-[1300] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-fadeIn">
-      <div className="bg-white p-8 rounded-2xl shadow-2xl max-w-sm w-full transform transition-all scale-100 border border-gray-100">
+    <div className="fixed inset-0 z-[1300] flex items-center justify-center p-4">
+      <div className="fixed inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose}/>
+      <div className="relative bg-white p-8 rounded-2xl shadow-2xl max-w-sm w-full transform transition-all scale-100 border border-gray-100">
         <div className={`mx-auto mb-4 w-16 h-16 rounded-full flex items-center justify-center ${iconBg}`}><Icon size={32}/></div>
         <h3 className="text-xl font-bold text-gray-900 text-center mb-2">{title}</h3>
         <p className="text-gray-500 text-center text-sm mb-6">{message}</p>
@@ -286,6 +297,7 @@ export const ActionModal = ({ isOpen, type, transaction, onClose, onConfirm, loa
 // 3. PROOF MODAL
 // ==========================================
 export const ProofModal = ({ isOpen, transaction, onClose, imageErrors, onRetryLoad, onError }) => {
+  useBodyScrollLock(isOpen);
   const [scale, setScale] = useState(1);
   const [rotation, setRotation] = useState(0);
   const [position, setPosition] = useState({ x: 0, y: 0 });
@@ -302,15 +314,19 @@ export const ProofModal = ({ isOpen, transaction, onClose, imageErrors, onRetryL
   const handleMouseUp = () => setIsDragging(false);
 
   return (
-    <div className="fixed inset-0 z-[1400] bg-black/95 flex flex-col animate-fadeIn backdrop-blur-sm">
+    <div className="fixed inset-0 z-[1400] flex flex-col animate-fadeIn">
+      {/* Background */}
+      <div className="fixed inset-0 bg-black/95 backdrop-blur-sm" onClick={onClose}/>
+      
+      {/* Content */}
       <div className="flex justify-between items-center p-4 bg-black/40 absolute top-0 w-full z-50">
         <div className="text-white"><h3 className="font-bold text-lg flex items-center gap-2"><FileText size={20} className="text-orange-400"/> Proof of Payment</h3><p className="text-xs text-gray-400 font-mono">{transaction.transaction_ref}</p></div>
         <button onClick={onClose} className="p-2 bg-white/10 hover:bg-white/20 rounded-full text-white"><X size={24} /></button>
       </div>
-      <div className="flex-1 flex items-center justify-center overflow-hidden cursor-grab active:cursor-grabbing p-4" onMouseDown={handleMouseDown} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp} onWheel={(e) => { if(e.deltaY < 0) handleZoomIn(); else handleZoomOut(); }}>
+      <div className="flex-1 flex items-center justify-center overflow-hidden cursor-grab active:cursor-grabbing p-4 relative z-10" onMouseDown={handleMouseDown} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp} onWheel={(e) => { if(e.deltaY < 0) handleZoomIn(); else handleZoomOut(); }}>
         {imageErrors && imageErrors[transaction.id] ? (<div className="text-center"><AlertCircle className="mx-auto text-red-500 mb-2" size={48} /><p className="text-gray-300 mb-4">Image failed to load</p><button onClick={() => onRetryLoad(transaction.id)} className="px-4 py-2 bg-white/10 text-white rounded hover:bg-white/20 flex items-center gap-2 mx-auto"><RefreshCw size={16}/> Retry</button></div>) : (<img src={getImageUrl(transaction.proof_of_payment)} alt="Proof" className="transition-transform duration-200 ease-out max-h-[80vh] max-w-full object-contain shadow-2xl" style={{ transform: `translate(${position.x}px, ${position.y}px) scale(${scale}) rotate(${rotation}deg)` }} onError={() => onError(transaction.id)} draggable={false}/>)}
       </div>
-      <div className="bg-black/80 backdrop-blur-md p-4 absolute bottom-0 w-full flex flex-col md:flex-row items-center justify-between gap-4 border-t border-white/10">
+      <div className="bg-black/80 backdrop-blur-md p-4 absolute bottom-0 w-full flex flex-col md:flex-row items-center justify-between gap-4 border-t border-white/10 z-50">
         <div className="flex items-center gap-2 bg-white/10 px-4 py-2 rounded-full"><button onClick={handleZoomOut} className="text-white hover:text-orange-400 p-1"><ZoomOut size={20}/></button><span className="text-xs text-gray-300 w-12 text-center">{Math.round(scale * 100)}%</span><button onClick={handleZoomIn} className="text-white hover:text-orange-400 p-1"><ZoomIn size={20}/></button><div className="w-px h-4 bg-gray-600 mx-2"></div><button onClick={handleRotate} className="text-white hover:text-green-400 p-1"><RotateCcw size={18}/></button><button onClick={handleReset} className="text-white hover:text-red-400 p-1"><Maximize size={18}/></button></div>
       </div>
     </div>
@@ -321,10 +337,12 @@ export const ProofModal = ({ isOpen, transaction, onClose, imageErrors, onRetryL
 // 4. CHECK-IN MODAL
 // ==========================================
 export const CheckInModal = ({ isOpen, transaction, onClose, onConfirm, loading }) => {
+  useBodyScrollLock(isOpen);
   if (!isOpen || !transaction) return null;
   return (
-    <div className="fixed inset-0 z-[1300] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-fadeIn">
-      <div className="bg-white p-8 rounded-2xl shadow-2xl max-w-md w-full border border-gray-100">
+    <div className="fixed inset-0 z-[1300] flex items-center justify-center p-4">
+      <div className="fixed inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose}/>
+      <div className="relative bg-white p-8 rounded-2xl shadow-2xl max-w-md w-full border border-gray-100">
         <h3 className="text-2xl font-bold text-gray-900 mb-6">Check-In Confirmation</h3>
         <div className="bg-orange-50 border border-orange-100 p-5 rounded-xl mb-6">
           <div className="flex items-center gap-3 mb-3"><div className="p-2 bg-orange-100 rounded-full text-orange-600"><User size={20} /></div><span className="font-bold text-gray-900 text-lg">{transaction.customer_name}</span></div>
@@ -340,20 +358,18 @@ export const CheckInModal = ({ isOpen, transaction, onClose, onConfirm, loading 
 // 5. DETAIL MODAL
 // ==========================================
 export const DetailModal = ({ isOpen, transaction, onClose, viewType }) => {
+  useBodyScrollLock(isOpen);
   if (!isOpen || !transaction) return null;
   
-  // Calculate Duration
   const sched = transaction.reservations?.[0];
   const duration = calculateDuration(sched?.check_in_date, sched?.check_out_date);
-
   const reservations = transaction.reservations || [];
   const extensions = transaction.extensions || [];
   const extensionTotal = extensions.reduce((sum, ext) => sum + parseFloat(ext.additional_cost || 0), 0);
   const totalAmount = parseFloat(transaction.total_amount || 0); 
   const baseTotal = totalAmount - extensionTotal; 
   const guestCount = parseInt(transaction.num_guest) || 0;
-  const entranceFee = guestCount * 50; 
-  const totalEntrance = entranceFee; 
+  const totalEntrance = guestCount * 50; 
 
   const isAmenityView = viewType === 'amenities';
   const isExtensionView = viewType === 'extensions';
@@ -364,8 +380,9 @@ export const DetailModal = ({ isOpen, transaction, onClose, viewType }) => {
   else if (isPaymentView) { title = 'Payment Breakdown'; TitleIcon = CreditCard; iconColor = 'text-green-600'; }
 
   return (
-    <div className="fixed inset-0 z-[1300] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-fadeIn">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col max-h-[85vh]">
+    <div className="fixed inset-0 z-[1300] flex items-center justify-center p-4">
+      <div className="fixed inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col max-h-[85vh]">
         <div className="px-6 py-5 border-b border-gray-100 flex justify-between items-center bg-white"><h3 className="font-bold text-xl text-slate-800 flex items-center gap-2"><TitleIcon className={iconColor} size={24}/>{title}</h3><button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors"><X size={24}/></button></div>
         <div className="p-6 overflow-y-auto custom-scrollbar bg-white">
           <div className="mb-6 border-b border-gray-50 pb-4"><h2 className="text-2xl font-bold text-slate-900">{transaction.customer_name}</h2><div className="flex justify-between items-center mt-1"><p className="text-xs text-gray-400 uppercase tracking-wider font-semibold">REF: {transaction.transaction_ref}</p><span className="px-2 py-0.5 rounded text-[10px] font-bold border bg-green-50 text-green-700 border-green-200">Fully Paid</span></div></div>
@@ -380,7 +397,6 @@ export const DetailModal = ({ isOpen, transaction, onClose, viewType }) => {
                   <div key={idx} className="flex justify-between items-center py-3 border-b border-gray-50 last:border-0 px-2 rounded-lg hover:bg-gray-50">
                     <div>
                         <span className="font-medium text-slate-700 text-sm block">{res.amenity_name}</span>
-                        {/* CALCULATION: Price x Qty x Nights */}
                         <span className="text-[10px] text-gray-400 font-medium">
                            {res.quantity} x ₱{parseFloat(res.price).toLocaleString()} x {duration} night{duration > 1 ? 's' : ''}
                         </span>
@@ -393,7 +409,6 @@ export const DetailModal = ({ isOpen, transaction, onClose, viewType }) => {
                   <div className="flex justify-between items-center py-3 px-2 rounded-lg hover:bg-gray-50">
                       <div className="flex items-center gap-2">
                           <span className="bg-blue-50 text-blue-600 text-[10px] px-1.5 py-0.5 rounded font-bold">{guestCount}</span>
-                          {/* CALCULATION: Price x Pax (One time) */}
                           <span className="font-medium text-slate-700 text-sm">Entrance Fee (₱50)</span>
                       </div>
                       <span className="font-bold text-slate-900 text-sm">₱{totalEntrance.toLocaleString()}</span>
@@ -413,7 +428,6 @@ export const DetailModal = ({ isOpen, transaction, onClose, viewType }) => {
                      <div key={idx} className="flex justify-between items-center py-3 border-b border-gray-50 px-2">
                        <div>
                          <span className="block font-bold text-slate-700 text-sm">{ext.description || `Extension #${idx+1}`}</span>
-                         {/* FIX: REMOVED 'Just Now' LOGIC. Always format date. */}
                          <span className="text-[10px] text-gray-400 uppercase">
                             {ext.created_at && !isNaN(new Date(ext.created_at).getTime()) 
                                 ? new Date(ext.created_at).toLocaleString('en-PH', { month: 'short', day: 'numeric', hour: 'numeric', minute:'2-digit' }) 
@@ -429,7 +443,6 @@ export const DetailModal = ({ isOpen, transaction, onClose, viewType }) => {
             </div>
           )}
           
-          {/* PAYMENT VIEW - FORCED FULLY PAID VISUALLY */}
           {isPaymentView && (
              <div className="space-y-6">
                 <div className="grid grid-cols-2 gap-3"><div className="p-3 bg-blue-50 rounded-xl border border-blue-100"><p className="text-xs text-blue-600 font-bold uppercase mb-1">Total Contract</p><p className="text-lg font-extrabold text-blue-900">₱{totalAmount.toLocaleString()}</p></div><div className="p-3 bg-green-50 rounded-xl border border-green-100"><p className="text-xs text-green-600 font-bold uppercase mb-1">Total Paid</p><p className="text-lg font-extrabold text-green-900">₱{totalAmount.toLocaleString()}</p></div></div>
@@ -438,7 +451,6 @@ export const DetailModal = ({ isOpen, transaction, onClose, viewType }) => {
                     {extensionTotal > 0 && (<div className="flex justify-between items-center text-sm"><span className="text-purple-600 flex items-center gap-1"><Plus size={12}/> Extensions (Paid)</span><span className="font-medium text-purple-700">₱{extensionTotal.toLocaleString()}</span></div>)}
                     <div className="border-t border-gray-200 my-2"></div>
                     <div className="flex justify-between items-center text-sm"><span className="text-gray-800 font-bold">Grand Total</span><span className="font-bold text-gray-900">₱{totalAmount.toLocaleString()}</span></div>
-                    {/* Visual force: Amount Paid equals Total */}
                     <div className="flex justify-between items-center text-sm"><span className="text-green-600 flex items-center gap-1"><Check size={12}/> Amount Paid</span><span className="font-bold text-green-600">- ₱{totalAmount.toLocaleString()}</span></div>
                 </div>
                 <div className="bg-green-100 border border-green-200 p-4 rounded-xl flex justify-between items-center shadow-sm"><div><p className="text-green-800 font-bold text-sm uppercase tracking-wide">Status</p><p className="text-xs text-green-700 opacity-80">Full payment received</p></div><div className="flex items-center gap-2"><CheckCircle className="text-green-600" size={24} /><span className="text-lg font-extrabold text-green-700">FULLY PAID</span></div></div>
@@ -454,6 +466,7 @@ export const DetailModal = ({ isOpen, transaction, onClose, viewType }) => {
 // 6. EXTEND MODAL
 // ==========================================
 export const ExtendModal = ({ isOpen, transaction, onClose, onExtend, loading }) => {
+  useBodyScrollLock(isOpen);
   const [extendHours, setExtendHours] = useState(1);
   if (!isOpen || !transaction) return null;
   const oldTotalAmount = parseFloat(transaction.total_amount || 0); 
@@ -473,8 +486,9 @@ export const ExtendModal = ({ isOpen, transaction, onClose, onExtend, loading })
   };
 
   return (
-    <div className="fixed inset-0 z-[1300] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-fadeIn">
-      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-[400px] overflow-hidden flex flex-col">
+    <div className="fixed inset-0 z-[1300] flex items-center justify-center p-4">
+      <div className="fixed inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-[400px] overflow-hidden flex flex-col">
         <div className="bg-[#F97316] px-6 py-5 flex justify-between items-start text-white"><div><h3 className="text-xl font-bold flex items-center gap-2"><Clock className="opacity-90" size={22} /> Extend Stay</h3><p className="text-orange-100 text-sm mt-1 opacity-90">{transaction.customer_name}</p></div><button onClick={onClose} disabled={loading} className="text-white/80 hover:text-white bg-white/10 hover:bg-white/20 p-1.5 rounded-full transition-colors"><X size={20} /></button></div>
         <div className="p-6 bg-[#F8FAFC]"> 
           <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-100 mb-4"><div className="flex items-center justify-between"><div><label className="block text-slate-800 font-bold text-base">Add Hours</label><span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Late Checkout</span></div><div className="flex items-center gap-1"><button onClick={() => setExtendHours(Math.max(1, extendHours - 1))} disabled={loading} className="w-10 h-10 flex items-center justify-center rounded-lg bg-gray-50 text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition-colors border border-gray-200"><Minus size={18} strokeWidth={3} /></button><div className="w-16 h-10 flex items-center justify-center bg-white border border-gray-200 rounded-lg mx-1"><input type="number" min="1" value={extendHours} onChange={e => setExtendHours(parseInt(e.target.value) || 1)} disabled={loading} className="w-full text-center text-xl font-bold text-slate-800 outline-none bg-transparent"/></div><button onClick={() => setExtendHours(extendHours + 1)} disabled={loading} className="w-10 h-10 flex items-center justify-center rounded-lg bg-orange-50 text-orange-500 hover:bg-orange-100 hover:text-orange-600 transition-colors border border-orange-100"><Plus size={18} strokeWidth={3} /></button></div></div></div>
@@ -490,19 +504,18 @@ export const ExtendModal = ({ isOpen, transaction, onClose, onExtend, loading })
 // 7. NEW BOOKING CONFIRMATION MODAL
 // ==========================================
 export const WalkInConfirmationModal = ({ isOpen, onClose, onConfirm, formData, cart, total, loading }) => {
+  useBodyScrollLock(isOpen);
   if (!isOpen) return null;
 
   const duration = calculateDuration(formData.checkInDate, formData.checkOutDate);
 
   return (
-    // FIXED: Z-index and Fixed Inset for Full Coverage
     <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4">
-      {/* FIXED: Blur covers everything */}
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-md" onClick={onClose} />
+      <div className="fixed inset-0 bg-black/60 backdrop-blur-md" onClick={onClose} />
       
       <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh] animate-slideIn">
         
-        {/* UPDATED: Orange Header */}
+        {/* Header */}
         <div className="shrink-0 bg-[#F97316] px-6 py-4 flex justify-between items-center text-white border-b border-orange-600 shadow-sm z-10">
           <h3 className="text-lg font-bold flex items-center gap-2">
             <CheckCircle className="text-white" size={20}/> Confirm Booking
@@ -512,8 +525,8 @@ export const WalkInConfirmationModal = ({ isOpen, onClose, onConfirm, formData, 
           </button>
         </div>
 
+        {/* Scrollable Body */}
         <div className="flex-1 overflow-y-auto px-6 py-6 custom-scrollbar space-y-5">
-          
           <div className="bg-gray-50 p-4 rounded-xl border border-gray-200">
             <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Customer Information</h4>
             <div className="grid grid-cols-2 gap-4">
@@ -533,7 +546,6 @@ export const WalkInConfirmationModal = ({ isOpen, onClose, onConfirm, formData, 
           </div>
 
           <div className="flex gap-4">
-             {/* UPDATED: Removed Blue accents, using Orange/Gray theme */}
              <div className="flex-1 bg-orange-50 p-3 rounded-xl border border-orange-100">
                 <p className="text-xs text-orange-600 font-bold uppercase">Check In</p>
                 <p className="font-bold text-gray-900 text-sm mt-1">
@@ -615,23 +627,21 @@ export const WalkInConfirmationModal = ({ isOpen, onClose, onConfirm, formData, 
 };
 
 export const WalkInSuccessModal = ({ isOpen, onClose, transactionRef }) => {
+    useBodyScrollLock(isOpen);
     if (!isOpen) return null;
     return (
-        <div className="fixed inset-0 z-[1400] flex items-center justify-center bg-black/70 backdrop-blur-sm animate-fadeIn p-4">
-            <div className="bg-white rounded-3xl shadow-2xl p-8 max-w-sm w-full text-center relative overflow-hidden">
-                
+        <div className="fixed inset-0 z-[1400] flex items-center justify-center p-4">
+            <div className="fixed inset-0 bg-black/70 backdrop-blur-sm animate-fadeIn" onClick={onClose}/>
+            <div className="relative bg-white rounded-3xl shadow-2xl p-8 max-w-sm w-full text-center overflow-hidden">
                 <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
                     <CheckCircle className="text-green-600" size={40} />
                 </div>
-                
                 <h2 className="text-2xl font-extrabold text-gray-800 mb-2">Booking Success!</h2>
                 <p className="text-gray-500 mb-6">Transaction has been recorded.</p>
-                
                 <div className="bg-gray-100 p-3 rounded-xl mb-6 border border-gray-200 border-dashed">
                     <p className="text-xs text-gray-500 uppercase font-bold tracking-wider">Transaction Ref</p>
                     <p className="text-lg font-mono font-bold text-gray-800 select-all">{transactionRef}</p>
                 </div>
-                
                 <button onClick={onClose} className="w-full py-3.5 bg-green-600 hover:bg-green-700 text-white font-bold rounded-xl shadow-lg shadow-green-200 transition-all active:scale-95">
                     Create New Booking
                 </button>
