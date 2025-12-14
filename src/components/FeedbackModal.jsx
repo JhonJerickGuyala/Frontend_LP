@@ -1,158 +1,180 @@
-import React, { useState, useEffect } from "react";
-import { Star, X, Loader2, Send, CheckCircle2, ShieldCheck } from "lucide-react";
-import { useAuth } from "../pages/AuthContext"; 
-import api from "../config/axios"; 
+import React, { useState } from 'react';
+import { X, Star, Loader2 } from 'lucide-react';
 
-const FeedbackModal = () => {
-    const { user, loading } = useAuth(); 
-    
-    const [isOpen, setIsOpen] = useState(false);
-    const [bookingId, setBookingId] = useState(null);
-    const [isSubmitting, setIsSubmitting] = useState(false);
-    const [showSuccess, setShowSuccess] = useState(false);
+const FeedbackModal = ({ onClose, onSubmit, isSubmitting }) => {
+  // --- STATE ---
+  const [name, setName] = useState("");
+  const [comment, setComment] = useState("");
+  const [ratings, setRatings] = useState({
+    service: 0,
+    cleanliness: 0,
+    amenities: 0
+  });
 
-    // Form State
-    const [name, setName] = useState("");
-    const [comment, setComment] = useState("");
-    const [ratings, setRatings] = useState({ service: 0, cleanliness: 0, amenities: 0 });
+  // --- CONFIG ---
+  const categories = [
+    { id: 'service', label: 'Service' },
+    { id: 'cleanliness', label: 'Cleanliness' },
+    { id: 'amenities', label: 'Amenities' }
+  ];
 
-    const categories = [
-        { id: 'service', label: 'Service' },
-        { id: 'cleanliness', label: 'Cleanliness' },
-        { id: 'amenities', label: 'Amenities' }
-    ];
+  // --- LOGIC ---
+  
+  // Update specific rating category
+  const handleRatingChange = (category, value) => {
+    setRatings(prev => ({
+      ...prev,
+      [category]: value
+    }));
+  };
 
-    useEffect(() => {
-        setIsOpen(false); 
+  // Calculate Average for display and payload
+  const getAverage = () => {
+    const values = Object.values(ratings);
+    const total = values.reduce((acc, curr) => acc + curr, 0);
+    return values.length ? (total / values.length).toFixed(1) : 0;
+  };
 
-        const checkEligibility = async () => {
-            if (loading) return;
-            if (!user || !user.id || user.role !== 'customer') return; 
+  // Handle Form Submission
+  const handleSubmit = (e) => {
+    e.preventDefault();
 
-            setName(user.name || ""); 
+    // Validation 1: Check if all categories are rated
+    if (Object.values(ratings).some(r => r === 0)) {
+      alert("Please rate all categories (Service, Cleanliness, Amenities).");
+      return;
+    }
 
-            try {
-                const res = await api.get(`/api/reservations/user/${user.id}`);
-                let bookingsList = [];
-                if (Array.isArray(res.data)) bookingsList = res.data;
-                else if (res.data.reservations) bookingsList = res.data.reservations;
-                else if (res.data.data) bookingsList = res.data.data;
+    // Validation 2: Check if comment is empty
+    if (!comment.trim()) {
+      alert("Please leave a comment regarding your stay.");
+      return;
+    }
 
-                if (bookingsList.length > 0) {
-                    const validBooking = bookingsList.find(booking => {
-                        const status = booking.status ? booking.status.toLowerCase() : '';
-                        const isStatusValid = status === 'checked-in' || status === 'completed';
-                        const noFeedback = !booking.has_feedback || booking.has_feedback == 0;
-                        return isStatusValid && noFeedback;
-                    });
-
-                    if (validBooking) {
-                        setBookingId(validBooking.id);
-                        setIsOpen(true);
-                    }
-                }
-            } catch (error) {
-                console.error("Auto-feedback check error:", error);
-                setIsOpen(false);
-            }
-        };
-
-        checkEligibility();
-    }, [user, loading]);
-
-    const handleRatingChange = (category, value) => {
-        setRatings(prev => ({ ...prev, [category]: value }));
+    // Payload construction matching CustomerDashboard logic
+    const payload = {
+      name: name || "Anonymous Guest",
+      rating: getAverage(), // Pass the calculated average
+      ratings: ratings,     // Pass the breakdown
+      comment: comment
     };
 
-    const getCurrentAverage = () => {
-        const values = Object.values(ratings);
-        const ratedValues = values.filter(r => r > 0);
-        const total = ratedValues.reduce((acc, curr) => acc + curr, 0);
-        return ratedValues.length > 0 ? (total / ratedValues.length).toFixed(1) : 0;
-    };
+    onSubmit(payload);
+  };
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        const unrated = categories.some(cat => ratings[cat.id] === 0);
-        if (unrated) { alert("Please rate all categories first."); return; }
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center px-4">
+      {/* Backdrop (Click to close) */}
+      <div 
+        className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity"
+        onClick={onClose}
+      />
 
-        setIsSubmitting(true);
-        try {
-            const avgRating = getCurrentAverage();
-            const payload = {
-                name: name || (user?.name ?? "Anonymous Guest"),
-                rating: avgRating,
-                comment: comment,
-                ratings: ratings,
-                booking_id: bookingId
-            };
-
-            const response = await api.post('/api/feedbacks', payload);
-
-            if (response.data.success) {
-                setShowSuccess(true);
-                setRatings({ service: 0, cleanliness: 0, amenities: 0 });
-                setComment(""); 
-                setTimeout(() => {
-                    setIsOpen(false);
-                    setShowSuccess(false);
-                    setBookingId(null);
-                }, 2000);
-            }
-        } catch (error) {
-            console.error(error);
-            alert("Failed to submit feedback.");
-        } finally {
-            setIsSubmitting(false);
-        }
-    };
-
-    if (!isOpen || loading) return null;
-
-    return (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-300">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden relative border border-gray-100">
-                <button onClick={() => setIsOpen(false)} className="absolute top-4 right-4 text-white/80 hover:text-white transition-colors z-10"><X size={24} /></button>
-                <div className="bg-[#ea580c] p-5 lg:p-6 text-white relative">
-                    <h3 className="font-bold text-xl">Share Your Experience</h3>
-                    <p className="text-white/80 text-xs mt-1">We value your feedback</p>
-                </div>
-                <div className="p-5 lg:p-6 relative">
-                    {showSuccess ? (
-                        <div className="flex flex-col items-center justify-center text-center p-6"><CheckCircle2 size={48} className="text-green-500 mb-4" /><h4 className="text-2xl font-bold text-gray-800">Thank You!</h4></div>
-                    ) : (
-                        <form onSubmit={handleSubmit} className="space-y-6">
-                            <div>
-                                <label className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4 block">Rate Your Experience</label>
-                                <div className="space-y-4">
-                                    {categories.map((cat) => (
-                                        <div key={cat.id} className="flex flex-col sm:flex-row sm:items-center justify-between">
-                                            <span className="text-sm font-medium text-gray-700">{cat.label}</span>
-                                            <div className="flex gap-1">
-                                                {[1, 2, 3, 4, 5].map((star) => (
-                                                    <button key={star} type="button" onClick={() => handleRatingChange(cat.id, star)} className="focus:outline-none hover:scale-110 transition-transform">
-                                                        <Star size={22} fill={star <= ratings[cat.id] ? "#f59e0b" : "#e5e7eb"} className={star <= ratings[cat.id] ? "text-[#f59e0b]" : "text-gray-200"} strokeWidth={0} />
-                                                    </button>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                            <hr className="border-gray-100" />
-                            <div className="space-y-4">
-                                <input type="text" placeholder="Your Name" className="w-full p-3 bg-gray-50 border border-gray-200 rounded-lg outline-none text-sm" value={name} onChange={(e) => setName(e.target.value)} />
-                                <textarea rows="4" placeholder="How can we improve?" className="w-full p-3 bg-gray-50 border border-gray-200 rounded-lg outline-none text-sm resize-none" value={comment} onChange={(e) => setComment(e.target.value)} required />
-                            </div>
-                            <button type="submit" disabled={isSubmitting} className="w-full bg-[#ea580c] text-white font-bold py-3 px-6 rounded-lg shadow-lg flex items-center justify-center gap-3">
-                                {isSubmitting ? <Loader2 size={18} className="animate-spin" /> : <><span>Submit Review</span><Send size={18} /></>}
-                            </button>
-                        </form>
-                    )}
-                </div>
-            </div>
+      {/* Modal Container */}
+      <div className="relative bg-white w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+        
+        {/* Header */}
+        <div className="bg-[#ea580c] p-6 text-white flex justify-between items-start">
+          <div>
+            <h3 className="text-xl font-bold">Write a Review</h3>
+            <p className="text-orange-100 text-sm mt-1">We value your feedback!</p>
+          </div>
+          <button 
+            onClick={onClose}
+            className="p-2 bg-white/20 hover:bg-white/30 rounded-full transition-colors text-white"
+          >
+            <X size={20} />
+          </button>
         </div>
-    );
+
+        {/* Form Body */}
+        <form onSubmit={handleSubmit} className="p-6 space-y-6">
+          
+          {/* Rating Section */}
+          <div className="space-y-4">
+            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Rate your experience</p>
+            
+            {categories.map((cat) => (
+              <div key={cat.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-gray-50 pb-2 last:border-0">
+                <span className="text-sm font-medium text-gray-700">{cat.label}</span>
+                <div className="flex gap-1">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <button
+                      key={star}
+                      type="button"
+                      onClick={() => handleRatingChange(cat.id, star)}
+                      className="focus:outline-none transition-transform active:scale-110"
+                    >
+                      <Star 
+                        size={24} 
+                        className={`${
+                          star <= ratings[cat.id] 
+                            ? "fill-yellow-400 text-yellow-400" 
+                            : "text-gray-200 hover:text-gray-300"
+                        } transition-colors`} 
+                      />
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Overall Average Display */}
+          <div className="flex items-center justify-between bg-orange-50 p-3 rounded-lg">
+            <span className="text-sm font-semibold text-gray-600">Overall Rating:</span>
+            <span className="text-xl font-bold text-[#ea580c]">
+              {getAverage()} <span className="text-sm font-normal text-gray-500">/ 5.0</span>
+            </span>
+          </div>
+
+          <hr className="border-gray-100" />
+
+          {/* Text Inputs */}
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Name (Optional)</label>
+              <input 
+                type="text" 
+                placeholder="Juan Dela Cruz"
+                className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#ea580c] focus:border-transparent text-sm"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Comment</label>
+              <textarea 
+                rows="3"
+                placeholder="Tell us about your stay..."
+                className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#ea580c] focus:border-transparent text-sm resize-none"
+                value={comment}
+                onChange={(e) => setComment(e.target.value)}
+              />
+            </div>
+          </div>
+
+          {/* Submit Button */}
+          <button
+            type="submit"
+            disabled={isSubmitting}
+            className="w-full py-3 bg-[#ea580c] hover:bg-[#c2410c] text-white font-bold rounded-lg transition-all flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
+          >
+            {isSubmitting ? (
+              <>
+                <Loader2 size={20} className="animate-spin" />
+                <span>Submitting...</span>
+              </>
+            ) : (
+              "Submit Review"
+            )}
+          </button>
+
+        </form>
+      </div>
+    </div>
+  );
 };
 
 export default FeedbackModal;

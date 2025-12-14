@@ -1,5 +1,5 @@
 import React from "react";
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./pages/AuthContext";
 import Auth from "./pages/Auth";
 import ResetPassword from "./pages/ResetPassword";
@@ -7,27 +7,15 @@ import Reservations from "./pages/customer/Reservations";
 import Feedback from "./pages/customer/Feedback";
 import Contact from "./pages/customer/Contact";
 import Amenities from "./pages/customer/Amenities";
+
+// Dashboards
 import CustomerDashboard from "./pages/customer/CustomerDashboard"; 
 import ReceptionistDashboard from "./pages/receptionist/ReceptionistDashboard"; 
 import OwnerDashboard from "./pages/owner/OwnerDashboard"; 
-import FeedbackModal from "./components/FeedbackModal"; 
 
+// NOTE: Tinanggal na natin ang FeedbackModal import at Wrapper
 
-const GlobalFeedbackWrapper = () => {
-    const { user, loading } = useAuth();
-    const location = useLocation();
-
- 
-    const isAuthPath = location.pathname === '/' || location.pathname === '/reset-password';
-    
-    if (isAuthPath) return null; 
-    if (loading) return null;
-    if (!user) return null; 
-
-    return <FeedbackModal />;
-};
-
-// --- 2. PROTECTED ROUTE ---
+// --- PROTECTED ROUTE (Retain lang natin to) ---
 const ProtectedRoute = ({ children, requiredRole }) => {
     const { user, loading } = useAuth();
 
@@ -45,7 +33,7 @@ const ProtectedRoute = ({ children, requiredRole }) => {
     return children;
 };
 
-// --- 3. UNAUTHORIZED PAGE ---
+// --- UNAUTHORIZED PAGE ---
 const UnauthorizedPage = () => {
     const { logout } = useAuth();
     return (
@@ -63,7 +51,7 @@ function App() {
     return (
         <AuthProvider>
             <BrowserRouter>
-                <GlobalFeedbackWrapper />
+                {/* TINANGGAL NA ANG <GlobalFeedbackWrapper /> DITO */}
 
                 <Routes>
                     <Route path="/" element={<Auth />} />

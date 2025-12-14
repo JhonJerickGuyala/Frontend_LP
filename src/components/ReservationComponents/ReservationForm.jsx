@@ -84,8 +84,7 @@ const ReservationForm = ({
         }));
         return; 
     }
-
-    // Block kung may conflict
+    
     if (hasAnyConflict) {
         alert("Please remove unavailable amenities from your cart before proceeding.");
         return;

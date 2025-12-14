@@ -4,6 +4,7 @@ import { User, Calendar, AlertCircle, Clock } from 'lucide-react';
 const WalkInForm = ({ formData, setFormData, errors = {} }) => {
     const [durationHours, setDurationHours] = useState('');
 
+    // Check immediately if In and Out are exactly the same
     const isSameDateTime = formData.checkInDate && formData.checkOutDate && formData.checkInDate === formData.checkOutDate;
 
     useEffect(() => {
@@ -51,6 +52,7 @@ const WalkInForm = ({ formData, setFormData, errors = {} }) => {
     };
 
     const getInputClass = (fieldName) => {
+        // Validation: Error from props OR (if field is checkOutDate and logic detects same date)
         const hasError = errors[fieldName] || (fieldName === 'checkOutDate' && isSameDateTime);
 
         return `block w-full px-4 py-3 border rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-all sm:text-sm ${
@@ -119,6 +121,7 @@ const WalkInForm = ({ formData, setFormData, errors = {} }) => {
                         <label className="block text-sm font-medium text-gray-700 mb-1">Check-out Date *</label>
                         <input type="datetime-local" value={formData.checkOutDate} onChange={handleCheckOutChange} className={getInputClass('checkOutDate')} min={formData.checkInDate} />
                         
+                        {/* Display existing errors from parent OR immediate logic error */}
                         {(errors.checkOutDate || isSameDateTime) && (
                             <p className="text-red-500 text-xs mt-1 ml-1 flex items-center gap-1">
                                 <AlertCircle size={12}/> 
